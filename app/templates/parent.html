@@ -1,0 +1,42 @@
+{% extends 'base.html' %}{% block content %}<div class="page-title"><h1>👑 Parent Center</h1><p>Family administration, schedules, homework, points, accounts, privacy, and backups.</p></div><div class="parent-launch-grid"><a href="#schedule">📅<strong>Schedule</strong><small>Generate and lock</small></a><a href="#homework">📚<strong>Homework</strong><small>Create and archive</small></a><a href="#users">👨‍👩‍👧‍👦<strong>Users</strong><small>PINs and accounts</small></a><a href="{{ url_for('parent.violations_page') }}">⚠️<strong>Violations</strong><small>Issue and review</small></a><a href="{{ url_for('parent.grievances_page') }}">🔒<strong>Grievances</strong><small>Private responses</small></a><a href="#points">⭐<strong>Points</strong><small>Adjust and value</small></a><a href="{{ url_for('main.reports') }}">📈<strong>Reports</strong><small>Charts and trends</small></a><a href="{{ url_for('main.exports') }}">📦<strong>Exports</strong><small>ZIP and database</small></a></div>
+<section class="glass-panel mb-4" id="schedule"><div class="panel-heading"><h2>📅 Weekly schedule control</h2><span>Week of {{ week.strftime('%b %d, %Y') }}</span></div><div class="alert {% if lock and lock.locked %}alert-warning{% else %}alert-info{% endif %}">{{ '🔒 Week is locked' if lock and lock.locked else '🔓 Week is editable' }}</div><form method="post" action="{{ url_for('parent.schedule_control') }}" class="row g-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="col-md-8"><label class="form-label">Reason for unlock or regeneration</label><input class="form-control dark-field" name="reason" placeholder="Required when unlocking"></div><div class="col-md-4 d-flex flex-wrap gap-2 align-items-end"><button name="action" value="lock" class="btn btn-outline-warning">🔒 Lock</button><button name="action" value="unlock" class="btn btn-outline-info">🔓 Unlock</button><button name="action" value="regenerate" class="btn btn-gradient">🔄 Regenerate</button></div></form></section>
+<section class="glass-panel mb-4" id="homework"><div class="panel-heading"><h2>📚 Homework administration</h2><span>One-time or recurring</span></div><form method="post" enctype="multipart/form-data" action="{{ url_for('parent.add_homework') }}" class="row g-3">{{ homework_form.hidden_tag() }}<div class="col-md-6">{{ homework_form.title.label(class='form-label') }}{{ homework_form.title(class='form-control dark-field') }}</div><div class="col-md-3">{{ homework_form.subject.label(class='form-label') }}{{ homework_form.subject(class='form-control dark-field') }}</div><div class="col-md-3">{{ homework_form.assigned_to.label(class='form-label') }}{{ homework_form.assigned_to(class='form-select dark-field') }}</div><div class="col-md-3">{{ homework_form.due_date.label(class='form-label') }}{{ homework_form.due_date(class='form-control dark-field') }}</div><div class="col-md-2">{{ homework_form.points.label(class='form-label') }}{{ homework_form.points(class='form-control dark-field') }}</div><div class="col-md-3">{{ homework_form.recurring.label(class='form-label') }}{{ homework_form.recurring(class='form-select dark-field') }}</div><div class="col-md-4">{{ homework_form.attachment.label(class='form-label') }}{{ homework_form.attachment(class='form-control dark-field') }}</div><div class="col-12">{{ homework_form.details.label(class='form-label') }}{{ homework_form.details(class='form-control dark-field',rows=3) }}</div><div class="col-12">{{ homework_form.submit(class='btn btn-gradient') }}</div></form><hr><div class="table-responsive"><table class="table table-dark"><thead><tr><th>Assignment</th><th>Person</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>{% for h in recent_homework %}<tr><td>{{ h.subject }} · {{ h.title }}</td><td>{{ h.assignee.name }}</td><td>{{ h.due_date }}</td><td>{{ h.status|title }}</td><td><form method="post" action="{{ url_for('parent.archive_homework',item_id=h.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-secondary">🗄️ Archive</button></form></td></tr>{% endfor %}</tbody></table></div></section>
+<div class="row g-4"><div class="col-lg-6"><section class="glass-panel h-100" id="users"><div class="panel-heading"><h2>👨‍👩‍👧‍👦 Users and PINs</h2></div>
+
+<h3 class="h5 mb-3">➕ Add family member</h3>
+
+<form method="post"
+      action="{{ url_for('parent.add_user') }}"
+      class="vstack gap-3 mb-4">
+
+  {{ new_user_form.hidden_tag() }}
+
+  {{ new_user_form.name(
+      class='form-control dark-field',
+      placeholder='Family member name'
+  ) }}
+
+  {{ new_user_form.role(
+      class='form-select dark-field'
+  ) }}
+
+  {{ new_user_form.pin(
+      class='form-control dark-field',
+      placeholder='Temporary PIN'
+  ) }}
+
+  {{ new_user_form.confirm_pin(
+      class='form-control dark-field',
+      placeholder='Confirm temporary PIN'
+  ) }}
+
+  {{ new_user_form.submit(
+      class='btn btn-gradient'
+  ) }}
+</form>
+
+<hr>
+
+<h3 class="h5 mb-3">🔑 Change a PIN</h3>
+
+<form method="post" action="{{ url_for('parent.change_pin') }}" class="vstack gap-3">{{ pin_form.hidden_tag() }}{{ pin_form.user_id(class='form-select dark-field') }}{{ pin_form.pin(class='form-control dark-field',placeholder='New PIN') }}{{ pin_form.confirm_pin(class='form-control dark-field',placeholder='Confirm PIN') }}{{ pin_form.submit(class='btn btn-outline-info') }}</form><hr>{% for u in users %}<div class="balance-row"><span>{{ u.emoji }} {{ u.name }} · {{ u.role|title }}</span>{% if u.id != current_user.id %}<form method="post" action="{{ url_for('parent.toggle_user',user_id=u.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-{{ 'danger' if u.active else 'success' }}">{{ 'Disable' if u.active else 'Enable' }}</button></form>{% endif %}</div>{% endfor %}</section></div><div class="col-lg-6"><section class="glass-panel h-100" id="points"><div class="panel-heading"><h2>⭐ Points and monetary value</h2></div>{% for row in point_balances %}<div class="balance-row"><span>{{ row.user.emoji }} {{ row.user.name }}</span><strong>{{ row.points }} pts</strong></div>{% endfor %}<hr><form method="post" action="{{ url_for('parent.adjust_points') }}" class="vstack gap-2">{{ points_form.hidden_tag() }}{{ points_form.user_id(class='form-select dark-field') }}{{ points_form.amount(class='form-control dark-field',placeholder='Positive or negative points') }}{{ points_form.reason(class='form-control dark-field',placeholder='Reason') }}{{ points_form.submit(class='btn btn-outline-warning') }}</form><hr><form method="post" action="{{ url_for('parent.money_rate_update') }}" class="d-flex gap-2">{{ rate_form.hidden_tag() }}{{ rate_form.money_per_point(class='form-control dark-field',placeholder='Dollars per point') }}{{ rate_form.submit(class='btn btn-outline-success') }}</form></section></div></div>{% endblock %}

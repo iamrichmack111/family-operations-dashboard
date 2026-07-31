@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Flask
+instance/
+flask_session/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime data
+exports/
+backups/
+uploads/
+*.db
+*.sqlite
+*.sqlite3
+
+# Local backups
+*.bak
+*.backup
+*.before-*
+
+# Logs
+*.log
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker overrides
+docker-compose.override.yml

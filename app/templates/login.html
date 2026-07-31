@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Sign in · Family Operations{% endblock %}
+{% block content %}
+<div class="login-stage min-vh-100 d-flex align-items-center justify-content-center">
+  <section class="login-panel glass-panel p-4 p-md-5">
+    <div class="text-center mb-4">
+      <div class="logo-orb mx-auto mb-3">🏠</div>
+      <h1 class="display-6 fw-black mb-1">Family <span class="brand-gradient">Operations</span></h1>
+      <p class="text-uppercase letter-space text-secondary mb-3">Dashboard</p>
+      <div class="mission-strip">💗 One Team. <span>⭐ One Home.</span> <span>🛡️ One Mission.</span></div>
+    </div>
+    <hr class="border-secondary-subtle">
+    <div class="text-center my-4">
+      <h2 class="h3 fw-bold">👋 Welcome back!</h2>
+      <p class="text-secondary">Sign in to continue.</p>
+    </div>
+    <form method="post" class="vstack gap-3">
+      {{ form.hidden_tag() }}
+      <div>
+        {{ form.user_id.label(class='form-label') }}
+        {{ form.user_id(class='form-select form-select-lg dark-field') }}
+      </div>
+      <div>
+        {{ form.password.label(class='form-label') }}
+        {{ form.password(class='form-control form-control-lg dark-field', inputmode='numeric', placeholder='Enter your PIN', autofocus=true) }}
+      </div>
+      <div class="form-check">{{ form.remember(class='form-check-input') }} {{ form.remember.label(class='form-check-label') }}</div>
+      {{ form.submit(class='btn btn-gradient btn-lg w-100') }}
+    </form>
+    <div class="text-center text-secondary small mt-4">🛡️ Secure. Private. Family.</div>
+  </section>
+</div>
+{% endblock %}

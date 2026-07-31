@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Family News · Family Operations{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+  <div>
+    <p class="eyebrow mb-1">🏠 Shared accountability</p>
+    <h1 class="display-6 fw-bold mb-1">📰 Family News & Activity</h1>
+    <p class="text-secondary mb-0">Celebrate completed work and follow household progress without exposing private family records.</p>
+  </div>
+</div>
+
+<ul class="nav nav-pills activity-tabs mb-4">
+  <li class="nav-item"><a class="nav-link {% if view == 'household' %}active{% endif %}" href="{{ url_for('main.activity', view='household') }}">🌎 Household</a></li>
+  <li class="nav-item"><a class="nav-link {% if view == 'mine' %}active{% endif %}" href="{{ url_for('main.activity', view='mine') }}">👤 My activity</a></li>
+  {% if current_user.is_parent %}<li class="nav-item"><a class="nav-link {% if view == 'parent' %}active{% endif %}" href="{{ url_for('main.activity', view='parent') }}">👑 Parent audit</a></li>{% endif %}
+</ul>
+
+<section class="glass-panel mb-4">
+  <form class="row g-2" method="get">
+    <input type="hidden" name="view" value="{{ view }}">
+    {% if view != 'mine' %}
+    <div class="col-md-5">
+      <select name="person" class="form-select dark-field">
+        <option value="">All family members</option>
+        {% for u in users %}<option value="{{ u.id }}" {% if request.args.get('person') == u.id|string %}selected{% endif %}>{{ u.emoji }} {{ u.name }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="{% if view == 'mine' %}col-md-10{% else %}col-md-5{% endif %}">
+      <select name="entity" class="form-select dark-field">
+        <option value="">All activity types</option>
+        {% for kind, label in [('chore','🧹 Chores'),('homework','📚 Homework'),('message','💬 Messages'),('points','⭐ Points'),('schedule','📅 Schedule')] %}
+        <option value="{{ kind }}" {% if request.args.get('entity') == kind %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+        {% if current_user.is_parent and view == 'parent' %}
+        <option value="grievance" {% if request.args.get('entity') == 'grievance' %}selected{% endif %}>🔒 Grievances</option>
+        <option value="violation" {% if request.args.get('entity') == 'violation' %}selected{% endif %}>⚠️ Violations</option>
+        <option value="session" {% if request.args.get('entity') == 'session' %}selected{% endif %}>🔐 Sessions</option>
+        {% endif %}
+      </select>
+    </div>
+    <div class="col-md-2"><button class="btn btn-gradient w-100">🔎 Filter</button></div>
+  </form>
+</section>
+
+{% if view == 'household' %}
+<section class="glass-panel mb-4">
+  <div class="panel-heading">
+    <h2>📣 Share with the family</h2>
+    <span>Visible to all active family accounts</span>
+  </div>
+
+  <form method="post"
+        action="{{ url_for('main.create_family_post') }}"
+        class="vstack gap-3">
+
+    {{ family_post_form.hidden_tag() }}
+
+    {{ family_post_form.message(
+        class='form-control dark-field',
+        rows=4,
+        placeholder='Share an announcement, reminder, encouragement, or family update…'
+    ) }}
+
+    <div>
+      {{ family_post_form.submit(
+          class='btn btn-gradient'
+      ) }}
+    </div>
+  </form>
+</section>
+
+<div class="privacy-note mb-4">🛡️ Private grievances, violation details, PIN changes, login history, money settings, and parent-only notes are never shown in this shared feed.</div>
+{% elif view == 'parent' %}
+<div class="privacy-note parent-note mb-4">👑 Parent audit contains sensitive administrative history. Keep this page private.</div>
+{% endif %}
+
+<section class="glass-panel">
+  <div class="timeline family-timeline">
+    {% for row in rows %}
+    <article>
+      <time>{{ row.created_at.strftime('%b %d, %Y') }}<small>{{ row.created_at.strftime('%I:%M %p') }}</small></time>
+      <div>
+        <strong>{{ row.actor.emoji if row.actor else '⚙️' }} {{ row.actor.name if row.actor else 'System' }}</strong>
+        {{ row.action }}
+        <span class="badge text-bg-dark border">{{ row.entity_type }}</span>
+        {% if row.details %}<p>{{ row.details }}</p>{% endif %}
+      </div>
+    </article>
+    {% else %}<p class="text-secondary">No activity found for this view.</p>{% endfor %}
+  </div>
+</section>
+{% endblock %}
