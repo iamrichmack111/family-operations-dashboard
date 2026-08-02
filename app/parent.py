@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from calendar import monthrange
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -34,7 +35,7 @@ def save_upload(field, prefix: str) -> str:
 @role_required("parent")
 def center():
     users = active_users(); recipients = [u for u in users if not u.is_parent]
-    homework_form = HomeworkForm(prefix="homework"); homework_form.assigned_to.choices = [(u.id, f"{u.emoji} {u.name}") for u in recipients]
+    homework_form = HomeworkForm(prefix="homework"); homework_form.assigned_to.choices = [("all", "👨‍👩‍👧 Assign to all children")] + [(str(u.id), f"{u.emoji} {u.name}") for u in recipients]
     new_user_form = NewUserForm(prefix="new-user")
     pin_form = PinForm(prefix="pin"); pin_form.user_id.choices = [(u.id, f"{u.emoji} {u.name} — {u.role.title()}") for u in users]
     points_form = PointAdjustmentForm(prefix="points"); points_form.user_id.choices = [(u.id, f"{u.emoji} {u.name}") for u in recipients]
@@ -76,16 +77,94 @@ def violations_page():
     return render_template("parent_violations.html", form=form, violations=rows)
 
 
+def _add_months(day: date, months: int) -> date:
+    month_index = day.month - 1 + months
+    year = day.year + month_index // 12
+    month = month_index % 12 + 1
+    return date(year, month, min(day.day, monthrange(year, month)[1]))
+
+
+def _homework_due_dates(first_due: date, recurring: str) -> list[date]:
+    """Create a practical forward schedule without changing the DB schema."""
+    if recurring == "daily":
+        return [first_due + timedelta(days=offset) for offset in range(30)]
+    if recurring == "weekly":
+        return [first_due + timedelta(weeks=offset) for offset in range(12)]
+    if recurring == "monthly":
+        return [_add_months(first_due, offset) for offset in range(6)]
+    return [first_due]
+
+
 @bp.post("/homework")
 @login_required
 @role_required("parent")
 def add_homework():
-    form=HomeworkForm(prefix="homework"); recipients=[u for u in active_users() if not u.is_parent]; form.assigned_to.choices=[(u.id,u.name) for u in recipients]
-    if form.validate_on_submit():
-        item=Homework(title=form.title.data.strip(),subject=form.subject.data.strip(),assigned_to=form.assigned_to.data,due_date=form.due_date.data,points=form.points.data,details=form.details.data.strip(),recurring=form.recurring.data,attachment_name=save_upload(form.attachment,"homework"),created_by=current_user.id)
-        db.session.add(item); db.session.commit(); notify(item.assigned_to,"📚","New homework assigned",item.title,url_for("main.dashboard")); log_activity(current_user.id,"created homework","homework",item.id,item.title); flash("📚 Homework assigned.","success")
-    else: flash("🚫 Complete all required homework fields.","danger")
-    return redirect(url_for("parent.center")+"#homework")
+    recipients = [u for u in active_users() if not u.is_parent]
+    form = HomeworkForm(prefix="homework")
+    form.assigned_to.choices = [("all", "Assign to all children")] + [
+        (str(u.id), u.name) for u in recipients
+    ]
+
+    if not form.validate_on_submit():
+        flash("🚫 Complete all required homework fields.", "danger")
+        return redirect(url_for("parent.center") + "#homework")
+
+    if form.assigned_to.data == "all":
+        assignees = [u for u in recipients if u.role == "child"]
+    else:
+        try:
+            selected_id = int(form.assigned_to.data)
+        except (TypeError, ValueError):
+            selected_id = -1
+        assignees = [u for u in recipients if u.id == selected_id]
+
+    if not assignees:
+        flash("🚫 No eligible assignees were selected.", "danger")
+        return redirect(url_for("parent.center") + "#homework")
+
+    attachment_name = save_upload(form.attachment, "homework")
+    due_dates = _homework_due_dates(form.due_date.data, form.recurring.data)
+    created_items: list[Homework] = []
+
+    for assignee in assignees:
+        for due_date in due_dates:
+            item = Homework(
+                title=form.title.data.strip(),
+                subject=form.subject.data.strip(),
+                assigned_to=assignee.id,
+                due_date=due_date,
+                points=form.points.data,
+                details=form.details.data.strip(),
+                recurring=form.recurring.data,
+                attachment_name=attachment_name,
+                created_by=current_user.id,
+            )
+            db.session.add(item)
+            created_items.append(item)
+
+    db.session.commit()
+
+    for assignee in assignees:
+        notify(
+            assignee.id,
+            "📚",
+            "New homework assigned",
+            f"{form.title.data.strip()} · {form.recurring.data.title()}",
+            url_for("main.dashboard"),
+        )
+
+    log_activity(
+        current_user.id,
+        "created homework",
+        "homework",
+        created_items[0].id if created_items else None,
+        f"{form.title.data.strip()} · {len(created_items)} assignment(s)",
+    )
+    flash(
+        f"📚 Created {len(created_items)} homework assignment(s) for {len(assignees)} child(ren).",
+        "success",
+    )
+    return redirect(url_for("parent.center") + "#homework")
 
 
 @bp.post("/homework/<int:item_id>/archive")

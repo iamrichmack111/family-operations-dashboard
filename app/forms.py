@@ -34,10 +34,10 @@ class GrievanceForm(FlaskForm):
 class HomeworkForm(FlaskForm):
     title = StringField("Title", validators=[DataRequired(), Length(max=180)])
     subject = StringField("Subject", validators=[DataRequired(), Length(max=100)])
-    assigned_to = SelectField("Assign to", coerce=int, validators=[DataRequired()])
+    assigned_to = SelectField("Assign to", coerce=str, validators=[DataRequired()])
     due_date = DateField("Due date", validators=[DataRequired()])
     points = IntegerField("Points", default=5, validators=[DataRequired(), NumberRange(min=0, max=10000)])
-    recurring = SelectField("Repeat", choices=[("none", "One time"), ("weekly", "Weekly"), ("monthly", "Monthly")])
+    recurring = SelectField("Repeat", choices=[("none", "One time"), ("daily", "Daily"), ("weekly", "Weekly"), ("monthly", "Monthly")])
     details = TextAreaField("Details", validators=[Optional(), Length(max=8000)])
     attachment = FileField("Attachment", validators=[Optional(), FileAllowed(["pdf", "png", "jpg", "jpeg", "txt", "docx"], "Unsupported file type")])
     submit = SubmitField("📚 Assign homework")

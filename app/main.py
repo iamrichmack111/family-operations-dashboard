@@ -129,14 +129,54 @@ def complete_task(kind,item_id):
 @login_required
 @role_required("parent","manager")
 def review_task(kind,item_id):
-    model=task_model(kind); item=db.session.get(model,item_id) if model else None; status=request.form.get("status")
-    if not item or status not in {"approved","needs_redo","excused"}:
-        flash("🚫 Invalid review.","danger"); return redirect(url_for("main.approvals"))
-    old=item.status; item.status=status; item.approved_by=current_user.id; item.note=request.form.get("note",item.note or "").strip(); db.session.commit()
-    if status=="approved" and old!="approved": add_points(item.assigned_to,item.points,f"Approved {kind}: {item.title}",kind,item.id,current_user.id)
-    notify(item.assigned_to,"✅" if status=="approved" else "🔁",f"{item.title}: {status.replace('_',' ').title()}",item.note,url_for("main.dashboard"))
-    log_activity(current_user.id,status.replace("_"," "),kind,item.id,item.title)
-    if wants_htmx(): return render_template("partials/approval_row.html",item=item,kind=kind)
+    model = task_model(kind)
+    item = db.session.get(model, item_id) if model else None
+    status = request.form.get("status")
+
+    if not item or status not in {"approved", "needs_redo", "excused"}:
+        flash("🚫 Invalid review.", "danger")
+        return redirect(url_for("main.approvals"))
+
+    old_status = item.status
+    review_note = request.form.get("note", "").strip()
+    item.status = status
+    item.approved_by = current_user.id
+
+    # Chores have a persisted note column. Homework does not, so keep
+    # homework review comments in the notification/activity record without
+    # changing the existing database schema.
+    if kind == "chore" and review_note:
+        item.note = review_note
+
+    db.session.commit()
+
+    if status == "approved" and old_status != "approved":
+        add_points(
+            item.assigned_to,
+            item.points,
+            f"Approved {kind}: {item.title}",
+            kind,
+            item.id,
+            current_user.id,
+        )
+
+    notify(
+        item.assigned_to,
+        "✅" if status == "approved" else "🔁",
+        f"{item.title}: {status.replace('_', ' ').title()}",
+        review_note,
+        url_for("main.dashboard"),
+    )
+    log_activity(
+        current_user.id,
+        status.replace("_", " "),
+        kind,
+        item.id,
+        f"{item.title}{': ' + review_note if review_note else ''}",
+    )
+
+    if wants_htmx():
+        return render_template("partials/approval_row.html", item=item, kind=kind)
     return redirect(url_for("main.approvals"))
 
 

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
-from .extensions import db, login_manager
+from .extensions import csrf, db, login_manager
 from .forms import LoginForm
 from .models import LoginEvent, User
 from .services import log_activity
@@ -49,6 +49,7 @@ def login():
 
 
 @bp.post("/logout")
+@csrf.exempt
 @login_required
 def logout():
     log_activity(current_user.id, "signed out", "session")
