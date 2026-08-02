@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 from flask import Flask
@@ -30,6 +31,23 @@ def create_app(test_config: dict | None = None) -> Flask:
     )
     if test_config:
         app.config.update(test_config)
+
+    eastern = ZoneInfo("America/New_York")
+
+    @app.template_filter("eastern")
+    def eastern_datetime(value, date_format="%b %d, %Y · %I:%M %p %Z"):
+        """Display stored UTC timestamps in US Eastern Time."""
+        if value is None:
+            return ""
+
+        if not isinstance(value, datetime):
+            return value
+
+        # SQLite may return a naive datetime even though we store UTC.
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+
+        return value.astimezone(eastern).strftime(date_format)
     for folder in (app.instance_path, app.config["EXPORT_DIR"], app.config["BACKUP_DIR"], app.config["UPLOAD_DIR"]):
         Path(folder).mkdir(parents=True, exist_ok=True)
     db.init_app(app); migrate.init_app(app, db); login_manager.init_app(app); csrf.init_app(app)

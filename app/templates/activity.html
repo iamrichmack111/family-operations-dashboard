@@ -79,7 +79,7 @@
   <div class="timeline family-timeline">
     {% for row in rows %}
     <article>
-      <time>{{ row.created_at.strftime('%b %d, %Y') }}<small>{{ row.created_at.strftime('%I:%M %p') }}</small></time>
+      <time>{{ row.created_at|eastern('%b %d, %Y') }}<small>{{ row.created_at|eastern('%I:%M %p %Z') }}</small></time>
       <div>
         <strong>{{ row.actor.emoji if row.actor else '⚙️' }} {{ row.actor.name if row.actor else 'System' }}</strong>
         {{ row.action }}
