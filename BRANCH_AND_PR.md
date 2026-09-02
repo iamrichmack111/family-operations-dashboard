@@ -1,32 +1,11 @@
 # Branch and pull request
 
-This package is prepared for:
+This fixed package is prepared for:
 
-`family-operations-dashboard-v16-three-point-rewards`
+`family-operations-dashboard-v16-cicd-fixed`
 
 Remote:
 
 `git@github.com:iamrichmack111/family-operations-dashboard.git`
 
-## Automatic
-
-```bash
-chmod +x submit_pr.sh
-./submit_pr.sh
-```
-
-## Manual
-
-```bash
-git fetch origin main
-git reset --mixed origin/main
-git add -A
-git commit -m "Apply Ultraviolet Neon dashboard theme"
-git push -u origin family-operations-dashboard-v16-three-point-rewards
-gh pr create \
-  --repo iamrichmack111/family-operations-dashboard \
-  --base main \
-  --head family-operations-dashboard-v16-three-point-rewards \
-  --title "Apply Ultraviolet Neon dashboard theme" \
-  --web
-```
+The ZIP intentionally contains no `.git` folder. Apply it to your existing clone or run `./submit_pr.sh` from the extracted folder; the helper fetches `origin/main` and creates the feature branch correctly.
