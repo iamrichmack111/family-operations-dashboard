@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Family Planner · Family Operations{% endblock %}
+{% block content %}
+<section class="lux-page-hero mb-4">
+  <div>
+    <p class="eyebrow mb-2">Two-week household outlook</p>
+    <h1>Family Planner</h1>
+    <p>Chores, homework, appointments, reminders, and family events in one calendar.</p>
+  </div>
+  <div class="lux-monogram" aria-hidden="true">14</div>
+</section>
+
+{% if current_user.role in ['parent','manager'] %}
+<section class="glass-panel lux-panel mb-4">
+  <div class="panel-heading"><h2>＋ Add calendar item</h2><span>Appointments · reminders · family plans</span></div>
+  <form method="post" action="{{ url_for('hq.add_event') }}" class="row g-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-lg-4"><label class="form-label">Title</label><input name="title" class="form-control dark-field" maxlength="180" required placeholder="Dentist, library, family meeting…"></div>
+    <div class="col-sm-6 col-lg-2"><label class="form-label">Date</label><input type="date" name="event_date" class="form-control dark-field" required></div>
+    <div class="col-sm-6 col-lg-2"><label class="form-label">Time</label><input type="time" name="start_time" class="form-control dark-field"></div>
+    <div class="col-lg-2"><label class="form-label">Category</label><select name="category" class="form-select dark-field"><option>Family</option><option>School</option><option>Appointment</option><option>Errand</option><option>Meal</option><option>Reminder</option><option>Celebration</option></select></div>
+    <div class="col-lg-2 d-flex align-items-end"><button class="btn btn-lux w-100">Add item</button></div>
+    <div class="col-12"><input name="details" class="form-control dark-field" maxlength="1000" placeholder="Optional details"></div>
+  </form>
+</section>
+{% endif %}
+
+<div class="planner-grid">
+  {% for day in days %}
+  <section class="planner-day {% if day.date == days[0].date %}is-today{% endif %}">
+    <header>
+      <div><span>{{ day.date.strftime('%a') }}</span><strong>{{ day.date.strftime('%d') }}</strong><small>{{ day.date.strftime('%b') }}</small></div>
+      <div class="planner-progress">
+        <span>{{ day.done }}/{{ day.total }} chores done</span>
+        <div><i style="width:{{ day.percent }}%"></i></div>
+      </div>
+    </header>
+
+    <div class="planner-stack">
+      {% for item in day.events %}
+      <article class="planner-item event-item">
+        <span class="planner-icon">◆</span>
+        <div><strong>{{ item.title }}</strong><small>{{ item.category }}{% if item.start_time %} · {{ item.start_time }}{% endif %}</small>{% if item.details %}<p>{{ item.details }}</p>{% endif %}</div>
+        {% if current_user.role in ['parent','manager'] %}<form method="post" action="{{ url_for('hq.delete_event',event_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="icon-btn" title="Remove">×</button></form>{% endif %}
+      </article>
+      {% endfor %}
+
+      {% for item in day.chores %}
+      <article class="planner-item chore-item status-{{ item.status }}"><span class="planner-icon">◇</span><div><strong>{{ item.title }}</strong><small>{{ item.assignee.name }} · {{ item.status|replace('_',' ')|title }} · {{ item.points }} pts</small></div></article>
+      {% endfor %}
+
+      {% for item in day.homework %}
+      <article class="planner-item homework-item"><span class="planner-icon">▧</span><div><strong>{{ item.subject }} · {{ item.title }}</strong><small>{{ item.assignee.name }} · {{ item.status|replace('_',' ')|title }}</small></div></article>
+      {% endfor %}
+
+      {% if not day.events and not day.chores and not day.homework %}<div class="planner-empty">Open day</div>{% endif %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

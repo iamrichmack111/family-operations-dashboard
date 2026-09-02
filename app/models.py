@@ -74,6 +74,7 @@ class Chore(TimestampMixin, db.Model):
     completed_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     approved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     note = db.Column(db.Text, default="", nullable=False)
+    proof_photo_name = db.Column(db.String(255), default="", nullable=False)
     reassignment_reason = db.Column(db.Text, default="", nullable=False)
     carried_from_id = db.Column(db.Integer, db.ForeignKey("chores.id"))
     assignee = db.relationship("User", foreign_keys=[assigned_to])
@@ -232,3 +233,159 @@ class Activity(db.Model):
     details = db.Column(db.Text, default="", nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)
     actor = db.relationship("User")
+
+
+class FamilyEvent(TimestampMixin, db.Model):
+    __tablename__ = "family_events"
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(180), nullable=False)
+    event_date = db.Column(db.Date, nullable=False, index=True)
+    start_time = db.Column(db.String(20), default="", nullable=False)
+    category = db.Column(db.String(60), default="Family", nullable=False)
+    details = db.Column(db.Text, default="", nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    creator = db.relationship("User", foreign_keys=[created_by])
+
+
+class ShoppingItem(TimestampMixin, db.Model):
+    __tablename__ = "shopping_items"
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(180), nullable=False)
+    quantity = db.Column(db.String(40), default="1", nullable=False)
+    category = db.Column(db.String(60), default="Household", nullable=False, index=True)
+    priority = db.Column(db.Integer, default=1, nullable=False)
+    done = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    added_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    done_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    done_at = db.Column(db.DateTime(timezone=True))
+    creator = db.relationship("User", foreign_keys=[added_by])
+    finisher = db.relationship("User", foreign_keys=[done_by])
+
+
+class FamilyGoal(TimestampMixin, db.Model):
+    __tablename__ = "family_goals"
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(180), nullable=False)
+    description = db.Column(db.Text, default="", nullable=False)
+    target_value = db.Column(db.Integer, default=1, nullable=False)
+    current_value = db.Column(db.Integer, default=0, nullable=False)
+    unit = db.Column(db.String(40), default="steps", nullable=False)
+    due_date = db.Column(db.Date, index=True)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    status = db.Column(db.String(30), default="active", nullable=False, index=True)
+    completed_at = db.Column(db.DateTime(timezone=True))
+    assignee = db.relationship("User", foreign_keys=[assigned_to])
+    creator = db.relationship("User", foreign_keys=[created_by])
+
+
+class Reward(TimestampMixin, db.Model):
+    __tablename__ = "rewards"
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(180), nullable=False)
+    description = db.Column(db.Text, default="", nullable=False)
+    cost_points = db.Column(db.Integer, nullable=False)
+    active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    creator = db.relationship("User", foreign_keys=[created_by])
+
+
+class RewardRedemption(TimestampMixin, db.Model):
+    __tablename__ = "reward_redemptions"
+    id = db.Column(db.Integer, primary_key=True)
+    reward_id = db.Column(db.Integer, db.ForeignKey("rewards.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    cost_points = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(30), default="pending", nullable=False, index=True)
+    note = db.Column(db.Text, default="", nullable=False)
+    resolved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    resolved_at = db.Column(db.DateTime(timezone=True))
+    reward = db.relationship("Reward")
+    user = db.relationship("User", foreign_keys=[user_id])
+    resolver = db.relationship("User", foreign_keys=[resolved_by])
+
+
+class PurchaseRequest(TimestampMixin, db.Model):
+    __tablename__ = "purchase_requests"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    product_url = db.Column(db.Text, nullable=False)
+    product_title = db.Column(db.String(240), nullable=False)
+    price_cents = db.Column(db.Integer)
+    cost_points = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(30), default="pending", nullable=False, index=True)
+    note = db.Column(db.Text, default="", nullable=False)
+    resolved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    resolved_at = db.Column(db.DateTime(timezone=True))
+    user = db.relationship("User", foreign_keys=[user_id])
+    resolver = db.relationship("User", foreign_keys=[resolved_by])
+
+    @property
+    def price_dollars(self) -> float | None:
+        return None if self.price_cents is None else self.price_cents / 100.0
+
+
+class ChoreTrade(TimestampMixin, db.Model):
+    __tablename__ = "chore_trades"
+    id = db.Column(db.Integer, primary_key=True)
+    offered_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    requested_to = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    accepted_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    chore_ids = db.Column(db.String(255), nullable=False)
+    chore_date = db.Column(db.Date, nullable=False, index=True)
+    chore_summary = db.Column(db.String(400), nullable=False)
+    offered_points = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(30), default="pending", nullable=False, index=True)
+    note = db.Column(db.Text, default="", nullable=False)
+    resolved_at = db.Column(db.DateTime(timezone=True))
+    offerer = db.relationship("User", foreign_keys=[offered_by])
+    requested_user = db.relationship("User", foreign_keys=[requested_to])
+    accepter = db.relationship("User", foreign_keys=[accepted_by])
+
+    def parsed_chore_ids(self) -> list[int]:
+        return [int(value) for value in self.chore_ids.split(",") if value.strip().isdigit()]
+
+
+class HouseholdAnnouncement(TimestampMixin, db.Model):
+    __tablename__ = "household_announcements"
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(180), nullable=False)
+    body = db.Column(db.Text, default="", nullable=False)
+    priority = db.Column(db.String(20), default="normal", nullable=False, index=True)
+    pinned = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    expires_on = db.Column(db.Date, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    creator = db.relationship("User", foreign_keys=[created_by])
+
+
+class FamilyPoll(TimestampMixin, db.Model):
+    __tablename__ = "family_polls"
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.String(240), nullable=False)
+    options_json = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), default="open", nullable=False, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    closes_on = db.Column(db.Date, index=True)
+    creator = db.relationship("User", foreign_keys=[created_by])
+    votes = db.relationship("FamilyPollVote", back_populates="poll", cascade="all, delete-orphan")
+
+    def options(self) -> list[str]:
+        import json
+        try:
+            values = json.loads(self.options_json)
+        except Exception:
+            return []
+        return [str(value) for value in values if str(value).strip()]
+
+
+class FamilyPollVote(db.Model):
+    __tablename__ = "family_poll_votes"
+    __table_args__ = (db.UniqueConstraint("poll_id", "user_id", name="uq_poll_user_vote"),)
+    id = db.Column(db.Integer, primary_key=True)
+    poll_id = db.Column(db.Integer, db.ForeignKey("family_polls.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    choice_index = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    poll = db.relationship("FamilyPoll", back_populates="votes")
+    user = db.relationship("User")
