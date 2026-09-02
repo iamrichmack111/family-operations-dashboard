@@ -15,7 +15,8 @@ venv/
 env/
 
 # Flask
-instance/
+instance/*
+!instance/family_dashboard.db
 flask_session/
 
 # Environment and secrets
@@ -30,6 +31,7 @@ uploads/
 *.db
 *.sqlite
 *.sqlite3
+!instance/family_dashboard.db
 
 # Local backups
 *.bak

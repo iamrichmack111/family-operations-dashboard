@@ -19,9 +19,11 @@ if ! python -c 'import flask, flask_sqlalchemy, flask_wtf, PIL' >/dev/null 2>&1;
 fi
 
 export FAMILY_DASHBOARD_SECRET="${FAMILY_DASHBOARD_SECRET:-$(python -c 'import secrets; print(secrets.token_hex(32))')}"
-export FAMILY_DASHBOARD_PORT="${FAMILY_DASHBOARD_PORT:-8010}"
+export FAMILY_DASHBOARD_HOST="${FAMILY_DASHBOARD_HOST:-0.0.0.0}"
+export FAMILY_DASHBOARD_PORT="${FAMILY_DASHBOARD_PORT:-8011}"
 
 echo "Family Operations Dashboard"
-echo "Open: http://127.0.0.1:${FAMILY_DASHBOARD_PORT}"
+echo "Open locally: http://127.0.0.1:${FAMILY_DASHBOARD_PORT}"
+echo "Network: http://family.local:${FAMILY_DASHBOARD_PORT}"
 echo "Press Ctrl+C to stop."
 exec python run.py

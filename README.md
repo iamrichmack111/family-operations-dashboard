@@ -61,11 +61,11 @@ python -m pip install -r requirements.txt
 
 ```bash
 export FAMILY_DASHBOARD_SECRET="$(python -c 'import secrets; print(secrets.token_hex(32))')"
-export FAMILY_DASHBOARD_PORT=8010
+export FAMILY_DASHBOARD_PORT=8011
 python run.py
 ```
 
-Open `http://127.0.0.1:8010`.
+Open `http://127.0.0.1:8011`.
 
 Bundled accounts are Samantha, Jeremy, Jasmin, Zara, and Aria. In this packaged database, all five accounts use PIN `1234`. Parents can change any PIN in **Parent Center → Users and PINs**.
 
@@ -73,14 +73,14 @@ Bundled accounts are Samantha, Jeremy, Jasmin, Zara, and Aria. In this packaged 
 
 ```bash
 source .venv/bin/activate
-gunicorn --workers 2 --bind 127.0.0.1:8010 --timeout 60 'wsgi:app'
+gunicorn --workers 2 --bind 0.0.0.0:8011 --timeout 60 'wsgi:app'
 ```
 
 ## Tailscale Serve
 
 ```bash
 sudo tailscale serve reset
-sudo tailscale serve --bg http://127.0.0.1:8010
+sudo tailscale serve --bg http://127.0.0.1:8011
 sudo tailscale serve status
 ```
 

@@ -5,16 +5,15 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=CHANGE_ME
-Group=CHANGE_ME
-WorkingDirectory=/opt/family-operations-dashboard
-Environment="PATH=/opt/family-operations-dashboard/.venv/bin"
+User=richmack
+Group=richmack
+WorkingDirectory=/home/richmack/family-operations-dashboard
+Environment="FAMILY_DASHBOARD_HOST=0.0.0.0"
+Environment="FAMILY_DASHBOARD_PORT=8011"
 EnvironmentFile=-/etc/family-dashboard.env
-ExecStart=/opt/family-operations-dashboard/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:8000 wsgi:app
-Restart=on-failure
+ExecStart=/home/richmack/family-operations-dashboard/.venv/bin/gunicorn --workers 2 --threads 2 --timeout 60 --bind 0.0.0.0:8011 wsgi:app
+Restart=always
 RestartSec=3
-PrivateTmp=true
-NoNewPrivileges=true
 
 [Install]
 WantedBy=multi-user.target
