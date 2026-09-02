@@ -7,7 +7,8 @@ from pathlib import Path
 from flask import current_app, g
 from werkzeug.security import generate_password_hash
 
-PEOPLE = ("Zara", "Jasmin", "Aria")
+from .chore_rotation import chore_assignments_for
+
 DEFAULT_USERS = (
     ("Samantha", "parent"),
     ("Jeremy", "parent"),
@@ -222,26 +223,17 @@ def ensure_week(start: date) -> None:
     db = get_db()
     for offset in range(7):
         day = start + timedelta(days=offset)
-        anchor = date(2026, 7, 27)
-        rotation_index = (day - anchor).days % 3
-        cook = PEOPLE[rotation_index]
-        others = [person for person in PEOPLE if person != cook]
-        if (day - anchor).days % 2:
-            others.reverse()
-        assignments = [
-            ("Cook and dishes", cook, 4),
-            ("Counters and stove", others[0], 1),
-            ("Table, chairs, and floor", others[1], 1),
-            ("Bathrooms", others[(day.toordinal() + 0) % 2], 3),
-            ("Kitchen deep clean", others[(day.toordinal() + 1) % 2], 3),
-            ("Basement", others[(day.toordinal() + 0) % 2], 3),
-            ("Laundry", others[(day.toordinal() + 1) % 2], 2),
-        ]
-        for title, person, points in assignments:
+        for title, person, points in chore_assignments_for(day, include_emoji=False):
             db.execute(
                 """INSERT OR IGNORE INTO chores(task_date, title, assigned_to, points)
                    VALUES (?, ?, ?, ?)""",
                 (day.isoformat(), title, user_id(person), points),
+            )
+            db.execute(
+                """UPDATE chores
+                   SET assigned_to = ?, points = ?
+                   WHERE task_date = ? AND title = ? AND status = 'assigned'""",
+                (user_id(person), points, day.isoformat(), title),
             )
     db.commit()
 

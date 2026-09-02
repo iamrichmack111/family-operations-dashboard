@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% block title %}Household HQ · Family Operations{% endblock %}
+{% block content %}
+<section class="lux-page-hero mb-4">
+  <div>
+    <p class="eyebrow mb-2">Household systems</p>
+    <h1>Household HQ</h1>
+    <p>Shopping, goals, private link rewards, chore trades, family announcements, polls, and weekly progress.</p>
+  </div>
+  <div class="lux-monogram" aria-hidden="true">HQ</div>
+</section>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6 col-xl-3"><div class="lux-stat"><span>Shopping</span><strong>{{ open_shopping }}</strong><small>open items</small></div></div>
+  <div class="col-md-6 col-xl-3"><div class="lux-stat"><span>Goals</span><strong>{{ active_goals }}</strong><small>active targets</small></div></div>
+  <div class="col-md-6 col-xl-3"><div class="lux-stat"><span>Rewards</span><strong>{{ pending_rewards }}</strong><small>purchase requests</small></div></div>
+  <div class="col-md-6 col-xl-3"><div class="lux-stat"><span>Trades</span><strong>{{ pending_trades }}</strong><small>open chore offers</small></div></div>
+</div>
+
+<section class="glass-panel sapphire-suite mb-4" id="scorecard">
+  <div class="panel-heading"><h2>7-Day Family Scorecard</h2><span>Completion · balance · point movement</span></div>
+  <div class="scorecard-grid">
+    {% for card in scorecards %}
+    <article class="scorecard-member">
+      <div class="scorecard-person"><span>{{ card.member.emoji }}</span><div><strong>{{ card.member.name }}</strong><small>{{ card.finished }}/{{ card.assigned }} assignments finished</small></div></div>
+      <div class="scorecard-meter"><i style="width:{{ [card.percent,100]|min }}%"></i></div>
+      <div class="scorecard-numbers"><span><strong>{{ card.percent }}%</strong> completion</span><span><strong>{{ card.balance }}</strong> balance</span><span class="{% if card.net_points < 0 %}negative{% endif %}"><strong>{{ '+' if card.net_points > 0 else '' }}{{ card.net_points }}</strong> 7-day pts</span></div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="row g-4 mb-4">
+  <div class="col-xl-6">
+    <section class="glass-panel sapphire-suite h-100" id="bulletin">
+      <div class="panel-heading"><h2>Household Bulletin</h2><span>Pinned family updates</span></div>
+      {% if current_user.role in ['parent','manager'] %}
+      <form method="post" action="{{ url_for('hq.announcement_add') }}" class="bulletin-form mb-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input name="title" class="form-control dark-field" required placeholder="Announcement title">
+        <textarea name="body" class="form-control dark-field" rows="2" placeholder="Details"></textarea>
+        <select name="priority" class="form-select dark-field"><option value="normal">Normal</option><option value="important">Important</option><option value="urgent">Urgent</option></select>
+        <input name="expires_on" type="date" class="form-control dark-field">
+        <label class="form-check bulletin-pin"><input class="form-check-input" type="checkbox" name="pinned" value="1"> Pin to top</label>
+        <button class="btn btn-lux">Post update</button>
+      </form>
+      {% endif %}
+      <div class="bulletin-stack">
+        {% for post in announcements %}
+        <article class="bulletin-card priority-{{ post.priority }}">
+          <div><span class="feature-kicker">{% if post.pinned %}Pinned · {% endif %}{{ post.priority|title }}</span><h3>{{ post.title }}</h3>{% if post.body %}<p>{{ post.body }}</p>{% endif %}<small>{{ post.creator.name }} · {{ post.created_at|eastern('%b %d · %I:%M %p') }}{% if post.expires_on %} · until {{ post.expires_on.strftime('%b %d') }}{% endif %}</small></div>
+          {% if current_user.role in ['parent','manager'] %}<form method="post" action="{{ url_for('hq.announcement_archive',announcement_id=post.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="icon-btn" title="Archive">×</button></form>{% endif %}
+        </article>
+        {% else %}<div class="empty-state"><span>◇</span><strong>No announcements</strong><small>Household updates will appear here.</small></div>{% endfor %}
+      </div>
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="glass-panel sapphire-suite h-100" id="polls">
+      <div class="panel-heading"><h2>Family Polls</h2><span>Vote once · change your vote while open</span></div>
+      {% if current_user.role in ['parent','manager'] %}
+      <form method="post" action="{{ url_for('hq.poll_create') }}" class="poll-create mb-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input name="question" class="form-control dark-field" required placeholder="What should the family decide?">
+        <textarea name="options" class="form-control dark-field" rows="3" required placeholder="Choice one&#10;Choice two&#10;Choice three"></textarea>
+        <input name="closes_on" type="date" class="form-control dark-field">
+        <button class="btn btn-lux">Create poll</button>
+      </form>
+      {% endif %}
+      <div class="poll-stack">
+        {% for card in poll_cards %}{% set poll=card.poll %}
+        <article class="poll-card {% if poll.status != 'open' %}is-closed{% endif %}">
+          <div class="d-flex justify-content-between gap-3"><div><span class="feature-kicker">{{ poll.status|title }}{% if poll.closes_on %} · closes {{ poll.closes_on.strftime('%b %d') }}{% endif %}</span><h3>{{ poll.question }}</h3></div><span class="poll-votes">{{ card.total_votes }} votes</span></div>
+          <form method="post" action="{{ url_for('hq.poll_vote',poll_id=poll.id) }}" class="poll-options">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% for option in card.options %}{% set idx=loop.index0 %}
+            <label class="poll-option {% if card.my_vote == idx %}is-picked{% endif %}"><input type="radio" name="choice" value="{{ idx }}" {% if card.my_vote == idx %}checked{% endif %} {% if poll.status != 'open' %}disabled{% endif %}><span><strong>{{ option }}</strong><small>{{ card.counts[idx] }} vote{{ '' if card.counts[idx] == 1 else 's' }}</small></span><i style="width:{{ ((card.counts[idx] / card.total_votes * 100) if card.total_votes else 0)|round|int }}%"></i></label>
+            {% endfor %}
+            {% if poll.status == 'open' %}<button class="btn btn-sm btn-lux">Save vote</button>{% endif %}
+          </form>
+          {% if current_user.role in ['parent','manager'] and poll.status == 'open' %}<form method="post" action="{{ url_for('hq.poll_close',poll_id=poll.id) }}" class="mt-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-link text-secondary p-0">Close poll</button></form>{% endif %}
+        </article>
+        {% else %}<div class="empty-state"><span>◇</span><strong>No family polls yet</strong></div>{% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-6">
+    <section class="glass-panel lux-panel h-100" id="shopping">
+      <div class="panel-heading"><h2>Shopping & supply list</h2><span>Shared checklist</span></div>
+      <form method="post" action="{{ url_for('hq.shopping_add') }}" class="shopping-add-grid mb-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input name="title" class="form-control dark-field" required placeholder="Add an item…">
+        <input name="quantity" class="form-control dark-field" placeholder="Qty" value="1">
+        <select name="category" class="form-select dark-field"><option>Household</option><option>Grocery</option><option>Cleaning</option><option>School</option><option>Personal</option><option>Other</option></select>
+        <select name="priority" class="form-select dark-field"><option value="1">Normal</option><option value="2">High</option><option value="3">Urgent</option></select>
+        <button class="btn btn-lux">Add</button>
+      </form>
+      <div class="lux-list">
+        {% for item in shopping %}
+        <article class="lux-list-row {% if item.done %}is-done{% endif %}">
+          <form method="post" action="{{ url_for('hq.shopping_toggle',item_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="check-orb" aria-label="Toggle item">{{ '✓' if item.done else '' }}</button></form>
+          <div><strong>{{ item.title }}</strong><small>{{ item.quantity }} · {{ item.category }}{% if item.priority == 3 %} · Urgent{% elif item.priority == 2 %} · High priority{% endif %}</small></div>
+          {% if current_user.role in ['parent','manager'] or item.added_by == current_user.id %}<form method="post" action="{{ url_for('hq.shopping_delete',item_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="icon-btn" title="Delete">×</button></form>{% endif %}
+        </article>
+        {% else %}<div class="empty-state"><span>✓</span><strong>Shopping list is clear</strong></div>{% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <div class="col-xl-6">
+    <section class="glass-panel lux-panel h-100" id="goals">
+      <div class="panel-heading"><h2>Family goals</h2><span>Track shared progress</span></div>
+      {% if current_user.role in ['parent','manager'] %}
+      <form method="post" action="{{ url_for('hq.goal_add') }}" class="goal-add-grid mb-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input name="title" class="form-control dark-field" required placeholder="Goal title">
+        <input name="target_value" type="number" min="1" value="10" class="form-control dark-field" placeholder="Target">
+        <input name="unit" value="steps" class="form-control dark-field" placeholder="Unit">
+        <select name="assigned_to" class="form-select dark-field"><option value="">Whole family</option>{% for member in members %}<option value="{{ member.id }}">{{ member.name }}</option>{% endfor %}</select>
+        <input name="due_date" type="date" class="form-control dark-field">
+        <input name="description" class="form-control dark-field" placeholder="Optional description">
+        <button class="btn btn-lux">Create goal</button>
+      </form>
+      {% endif %}
+      <div class="goal-grid">
+        {% for goal in goals %}
+        {% set pct = ((goal.current_value / goal.target_value * 100) if goal.target_value else 0)|round|int %}
+        <article class="goal-card {% if goal.status == 'completed' %}is-complete{% endif %}">
+          <div class="d-flex justify-content-between gap-3"><div><strong>{{ goal.title }}</strong><small>{{ goal.assignee.name if goal.assignee else 'Whole family' }}{% if goal.due_date %} · due {{ goal.due_date.strftime('%b %d') }}{% endif %}</small></div><span>{{ goal.current_value }}/{{ goal.target_value }} {{ goal.unit }}</span></div>
+          {% if goal.description %}<p>{{ goal.description }}</p>{% endif %}
+          <div class="goal-meter"><i style="width:{{ [pct,100]|min }}%"></i></div>
+          {% if goal.status == 'active' %}<form method="post" action="{{ url_for('hq.goal_progress',goal_id=goal.id) }}" class="d-flex gap-2 mt-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input name="amount" type="number" value="1" class="form-control form-control-sm dark-field"><button class="btn btn-sm btn-outline-light">Add progress</button></form>{% endif %}
+          {% if current_user.is_parent %}<form method="post" action="{{ url_for('hq.goal_delete',goal_id=goal.id) }}" class="mt-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-link text-secondary p-0">Remove goal</button></form>{% endif %}
+        </article>
+        {% else %}<div class="empty-state"><span>◇</span><strong>No goals yet</strong></div>{% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+
+<section class="glass-panel lux-panel mt-4" id="rewards">
+  <div class="panel-heading">
+    <h2>Link Rewards Store</h2>
+    <span>{{ reward_points_per_dollar }} points per $1 · maximum {{ reward_max_points }} points</span>
+  </div>
+
+  {% if current_user.role in ['manager','child'] %}
+  <div class="reward-link-layout mb-4">
+    <div class="reward-link-intro">
+      <span class="feature-kicker">1 · Quote it</span>
+      <h3>Paste what you want</h3>
+      <p>Paste the store link. The dashboard checks the listed price and tells you the point cost before you spend anything.</p>
+      <div class="balance-pill">Your balance <strong>{{ balances.get(current_user.id, 0) }} pts</strong></div>
+    </div>
+    <form method="post" action="{{ url_for('hq.reward_quote') }}" class="reward-link-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Product link</label>
+      <input name="product_url" type="url" class="form-control dark-field" required placeholder="https://store.com/item" value="" autocomplete="off">
+      <label>Displayed price <small>(only if the store blocks scanning)</small></label>
+      <div class="input-group">
+        <span class="input-group-text lux-input-addon">$</span>
+        <input name="fallback_price" type="number" min="0.01" step="0.01" class="form-control dark-field" placeholder="Optional">
+      </div>
+      <button class="btn btn-lux">Check point cost</button>
+    </form>
+  </div>
+
+  {% if reward_quote %}
+  <article class="reward-quote-card {% if not reward_quote.points %}quote-needs-price{% endif %}">
+    <div>
+      <span class="feature-kicker">2 · Point quote</span>
+      <h3>{{ reward_quote.title }}</h3>
+      <span class="private-link-chip">🔒 Product link hidden after submission</span>
+      <p>{{ reward_quote.message }}</p>
+    </div>
+    {% if reward_quote.points %}
+    <div class="quote-numbers">
+      <span>Store price<strong>${{ '%.2f'|format(reward_quote.price) }}</strong></span>
+      <span>Point cost<strong>{{ reward_quote.points }} pts</strong></span>
+      {% if reward_quote.points == reward_max_points %}<small>Maximum point cap applied</small>{% endif %}
+    </div>
+    <form method="post" action="{{ url_for('hq.reward_request') }}" class="quote-request-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input name="note" class="form-control dark-field" placeholder="Optional note for parent">
+      <button class="btn btn-lux" {% if balances.get(current_user.id,0) < reward_quote.points %}disabled{% endif %}>Request item for {{ reward_quote.points }} points</button>
+      {% if balances.get(current_user.id,0) < reward_quote.points %}<small>You need {{ reward_quote.points - balances.get(current_user.id,0) }} more points.</small>{% endif %}
+    </form>
+    {% else %}
+    <div class="quote-numbers"><span>Price<strong>Not detected</strong></span><small>Enter the price above and check again.</small></div>
+    {% endif %}
+  </article>
+  {% endif %}
+  {% else %}
+  <div class="parent-review-banner"><span>🛍️</span><div><strong>Purchase review desk</strong><p>Children paste product links and spend points only after seeing the calculated cost. Denied requests automatically refund their points.</p></div></div>
+  {% endif %}
+
+  <div class="panel-heading mt-4"><h2 class="h5">Purchase requests</h2><span>Points stay spent only when the request is fulfilled</span></div>
+  <div class="lux-list">
+    {% for item in purchases %}
+    <article class="lux-list-row purchase-row">
+      <span class="reward-status status-{{ item.status }}">{{ item.status|title }}</span>
+      <div>
+        <strong>{{ item.product_title }}</strong>
+        <small>{{ item.user.name }} · {{ item.cost_points }} pts{% if item.price_dollars is not none %} · ${{ '%.2f'|format(item.price_dollars) }}{% endif %} · {{ item.created_at|eastern('%b %d · %I:%M %p') }}</small>
+        {% if current_user.is_parent %}<a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="lux-inline-link">Open private purchase link ↗</a>{% else %}<span class="private-link-chip">🔒 Link visible to parents only</span>{% endif %}
+        {% if item.note %}<p class="mb-0 mt-1">{{ item.note }}</p>{% endif %}
+      </div>
+      {% if current_user.is_parent and item.status == 'pending' %}
+      <div class="d-flex gap-2 flex-wrap justify-content-end">
+        <form method="post" action="{{ url_for('hq.purchase_resolve',purchase_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="fulfilled"><button class="btn btn-sm btn-outline-success">Fulfill</button></form>
+        <form method="post" action="{{ url_for('hq.purchase_resolve',purchase_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="denied"><button class="btn btn-sm btn-outline-secondary">Deny + refund</button></form>
+      </div>
+      {% endif %}
+    </article>
+    {% else %}<div class="empty-state"><span>◇</span><strong>No purchase requests yet</strong></div>{% endfor %}
+  </div>
+</section>
+
+<section class="glass-panel lux-panel mt-4" id="trades">
+  <div class="panel-heading"><h2>Chore Trade Exchange</h2><span>Offer points for someone else to take an assignment</span></div>
+
+  {% if current_user.role in ['manager','child'] %}
+  <div class="trade-explainer mb-4">
+    <div><span>01</span><strong>Choose an assignment</strong><small>Paired deep-clean chores move together.</small></div>
+    <div><span>02</span><strong>Offer points</strong><small>The points are held in escrow.</small></div>
+    <div><span>03</span><strong>Someone accepts</strong><small>The chore and points transfer instantly.</small></div>
+  </div>
+  <form method="post" action="{{ url_for('hq.chore_trade_create') }}" class="trade-create-grid mb-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label>Assignment</label><select name="chore_id" class="form-select dark-field" required><option value="">Select a chore…</option>{% for option in chore_options %}<option value="{{ option.chore.id }}">{{ option.chore.task_date.strftime('%a %b %d') }} · {{ option.summary }}</option>{% endfor %}</select></div>
+    <div><label>Points offered</label><input name="offered_points" type="number" min="1" max="{{ balances.get(current_user.id,0) if balances.get(current_user.id,0) > 0 else 1 }}" class="form-control dark-field" required placeholder="25"></div>
+    <div><label>Offer to</label><select name="requested_to" class="form-select dark-field"><option value="">Anyone can accept</option>{% for member in members if member.id != current_user.id %}<option value="{{ member.id }}">{{ member.name }}</option>{% endfor %}</select></div>
+    <div><label>Note</label><input name="note" class="form-control dark-field" placeholder="Optional message"></div>
+    <button class="btn btn-lux">Post trade</button>
+  </form>
+  {% if not chore_options %}<div class="small text-secondary mb-4">You currently have no available assignments to trade in the next 7 days.</div>{% endif %}
+  {% else %}
+  <div class="parent-review-banner mb-4"><span>🔄</span><div><strong>Trade oversight</strong><p>Trades are voluntary. Offered points are escrowed, and paired deep-clean assignments stay together when transferred.</p></div></div>
+  {% endif %}
+
+  <div class="trade-grid">
+    {% for trade in trades %}
+    <article class="trade-card status-{{ trade.status }}">
+      <div class="trade-card-head">
+        <span class="reward-status status-{{ trade.status }}">{{ trade.status|title }}</span>
+        <span class="trade-price">{{ trade.offered_points }} pts</span>
+      </div>
+      <h3>{{ trade.chore_summary }}</h3>
+      <p class="trade-date">{{ trade.chore_date.strftime('%A · %b %d') }}</p>
+      <div class="trade-route"><strong>{{ trade.offerer.name }}</strong><span>→</span><strong>{% if trade.status == 'accepted' and trade.accepter %}{{ trade.accepter.name }}{% elif trade.requested_user %}{{ trade.requested_user.name }}{% else %}Open offer{% endif %}</strong></div>
+      {% if trade.note %}<p class="trade-note">“{{ trade.note }}”</p>{% endif %}
+      {% if trade.status == 'pending' %}
+      <div class="d-flex gap-2 flex-wrap mt-3">
+        {% if current_user.role in ['manager','child'] and current_user.id != trade.offered_by and (not trade.requested_to or trade.requested_to == current_user.id) %}
+        <form method="post" action="{{ url_for('hq.chore_trade_accept',trade_id=trade.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-lux">Accept + earn {{ trade.offered_points }}</button></form>
+        {% endif %}
+        {% if current_user.id == trade.offered_by or current_user.is_parent or (trade.requested_to and current_user.id == trade.requested_to) %}
+        <form method="post" action="{{ url_for('hq.chore_trade_cancel',trade_id=trade.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-secondary">{% if trade.requested_to == current_user.id and current_user.id != trade.offered_by %}Decline{% else %}Cancel{% endif %}</button></form>
+        {% endif %}
+      </div>
+      {% endif %}
+      <small class="trade-time">Posted {{ trade.created_at|eastern('%b %d · %I:%M %p') }}</small>
+    </article>
+    {% else %}<div class="empty-state"><span>↔</span><strong>No chore trades yet</strong></div>{% endfor %}
+  </div>
+</section>
+{% endblock %}

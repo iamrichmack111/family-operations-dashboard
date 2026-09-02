@@ -1,1 +1,47 @@
-{% extends 'base.html' %}{% block content %}<div class="page-title"><h1>✅ Pending approvals</h1><p>Parents and the house manager can approve work or request a redo.</p></div><div class="row g-4"><div class="col-lg-6"><section class="glass-panel"><div class="panel-heading"><h2>🧹 Chores</h2><span>{{ chores|length }}</span></div><div class="vstack gap-3">{% for item in chores %}{% set kind='chore' %}{% include 'partials/approval_row.html' %}{% else %}<p class="text-secondary">Nothing waiting.</p>{% endfor %}</div></section></div><div class="col-lg-6"><section class="glass-panel"><div class="panel-heading"><h2>📚 Homework</h2><span>{{ homework|length }}</span></div><div class="vstack gap-3">{% for item in homework %}{% set kind='homework' %}{% include 'partials/approval_row.html' %}{% else %}<p class="text-secondary">Nothing waiting.</p>{% endfor %}</div></section></div></div>{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-title d-flex flex-wrap justify-content-between align-items-end gap-3">
+  <div>
+    <p class="eyebrow mb-1">Quality check</p>
+    <h1>✅ Pending approvals</h1>
+    <p>Review completed work, check a photo when one was attached, and send clear feedback.</p>
+  </div>
+  <span class="review-count">{{ chores|length + homework|length }} waiting</span>
+</div>
+
+<div class="proof-policy mb-4">
+  <span class="proof-policy-icon">📸</span>
+  <div><strong>Photos are optional</strong><small>When a completion photo is attached, it appears here for review. Approval still works without one.</small></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <section class="glass-panel panel-accent-cyan">
+      <div class="panel-heading"><h2>🧹 Chores</h2><span>{{ chores|length }}</span></div>
+      <div class="vstack gap-3">
+        {% for item in chores %}
+          {% set kind = 'chore' %}
+          {% set has_proof = item.id in chore_proof_ids %}
+          {% include 'partials/approval_row.html' %}
+        {% else %}
+          <div class="empty-state"><span>✨</span><strong>Chores are clear</strong><small>Nothing is waiting for review.</small></div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+  <div class="col-lg-6">
+    <section class="glass-panel panel-accent-purple">
+      <div class="panel-heading"><h2>📚 Homework</h2><span>{{ homework|length }}</span></div>
+      <div class="vstack gap-3">
+        {% for item in homework %}
+          {% set kind = 'homework' %}
+          {% set has_proof = true %}
+          {% include 'partials/approval_row.html' %}
+        {% else %}
+          <div class="empty-state"><span>🌙</span><strong>Homework is clear</strong><small>Nothing is waiting for review.</small></div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
