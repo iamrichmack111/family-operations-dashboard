@@ -7,10 +7,10 @@ from pathlib import Path
 from flask import current_app, url_for
 from sqlalchemy import func
 
+from .chore_rotation import PEOPLE, chore_assignments_for
 from .extensions import db
 from .models import Activity, Chore, Notification, PointTransaction, ScheduleLock, Setting, User, ViolationCategory
 
-PEOPLE = ("Zara", "Jasmin", "Aria")
 DEFAULT_USERS = (("Samantha", "parent"), ("Jeremy", "parent"), ("Jasmin", "manager"), ("Zara", "child"), ("Aria", "child"))
 VIOLATION_CATEGORIES = (
     ("insubordination", "Insubordination", 15),
@@ -54,25 +54,25 @@ def is_week_locked(day: date) -> bool:
 def ensure_week(start: date, *, force: bool = False) -> None:
     if is_week_locked(start) and not force:
         return
-    anchor = date(2026, 7, 27)
     users = {u.name: u.id for u in db.session.scalars(db.select(User).where(User.name.in_(PEOPLE))).all()}
-    weights = {"🍳 Cook and dishes": 4, "🧽 Counters and stove": 1, "🪑 Table, chairs, and floor": 1, "🛁 Bathrooms": 3, "🧹 Kitchen deep clean": 3, "📦 Basement": 3, "🧺 Laundry": 2}
     for offset in range(7):
         day = start + timedelta(days=offset)
-        idx = (day - anchor).days % len(PEOPLE)
-        cook = PEOPLE[idx]
-        others = [p for p in PEOPLE if p != cook]
-        if (day - anchor).days % 2:
-            others.reverse()
-        assignments = [
-            ("🍳 Cook and dishes", cook), ("🧽 Counters and stove", others[0]), ("🪑 Table, chairs, and floor", others[1]),
-            ("🛁 Bathrooms", others[day.toordinal() % 2]), ("🧹 Kitchen deep clean", others[(day.toordinal() + 1) % 2]),
-            ("📦 Basement", others[day.toordinal() % 2]), ("🧺 Laundry", others[(day.toordinal() + 1) % 2]),
-        ]
-        for title, person in assignments:
-            exists = db.session.scalar(db.select(Chore.id).where(Chore.task_date == day, Chore.title == title))
-            if not exists:
-                db.session.add(Chore(task_date=day, title=title, assigned_to=users[person], points=weights[title], weight=weights[title]))
+        for title, person, points in chore_assignments_for(day):
+            existing = db.session.scalar(
+                db.select(Chore).where(
+                    Chore.task_date == day,
+                    Chore.title == title,
+                )
+            )
+            if existing is None:
+                db.session.add(Chore(task_date=day, title=title, assigned_to=users[person], points=points, weight=points))
+            elif existing.status == "assigned":
+                # Older app versions inserted future rows with a different
+                # Basement/Bathrooms sequence. Reconcile only untouched work;
+                # completed, approved, excused, and redo records remain intact.
+                existing.assigned_to = users[person]
+                existing.points = points
+                existing.weight = points
     db.session.commit()
 
 

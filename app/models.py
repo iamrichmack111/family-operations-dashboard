@@ -74,6 +74,7 @@ class Chore(TimestampMixin, db.Model):
     completed_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     approved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     note = db.Column(db.Text, default="", nullable=False)
+    proof_photo_name = db.Column(db.String(255), default="", nullable=False)
     reassignment_reason = db.Column(db.Text, default="", nullable=False)
     carried_from_id = db.Column(db.Integer, db.ForeignKey("chores.id"))
     assignee = db.relationship("User", foreign_keys=[assigned_to])

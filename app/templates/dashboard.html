@@ -1,5 +1,153 @@
-{% extends 'base.html' %}{% block content %}<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><p class="eyebrow mb-1">🏡 {{ 'Parent command center' if current_user.is_parent else ('House manager desk' if current_user.role=='manager' else 'My family dashboard') }}</p><h1 class="display-6 fw-bold mb-1">Hello, {{ current_user.name }}! 👋</h1><p class="text-secondary mb-0">Your priorities, progress, and alerts in one place.</p></div><span class="badge rounded-pill text-bg-dark border px-3 py-2">{{ current_user.emoji }} {{ current_user.role|title }}</span></div>
-<div class="row g-3 mb-4"><div class="col-6 col-xl"><div class="metric-card tint-purple"><span>⭐ Family points</span><strong>{{ points|sum(attribute='points') }}</strong><small>Combined balance</small></div></div><div class="col-6 col-xl"><div class="metric-card tint-green"><span>✅ Pending approvals</span><strong>{{ pending_approvals }}</strong><small>Ready to review</small></div></div><div class="col-6 col-xl"><div class="metric-card tint-blue"><span>📚 Homework</span><strong>{{ homework|length }}</strong><small>Open or upcoming</small></div></div><div class="col-6 col-xl"><div class="metric-card tint-orange"><span>⚠️ Acknowledge</span><strong>{{ unacked }}</strong><small>Violation notices</small></div></div><div class="col-6 col-xl"><div class="metric-card tint-pink"><span>💬 Unread</span><strong>{{ unread_messages }}</strong><small>Family messages</small></div></div>{% if current_user.is_parent %}<div class="col-6 col-xl"><div class="metric-card tint-red"><span>🔒 Grievances</span><strong>{{ open_grievances }}</strong><small>Open reviews</small></div></div>{% endif %}</div>
-<div class="row g-4 mb-4"><div class="col-lg-6"><section class="glass-panel h-100"><div class="panel-heading"><h2>⭐ Points balance</h2><span>${{ '%.2f'|format(money_rate) }} per point</span></div><canvas id="pointsChart"></canvas></section></div><div class="col-lg-6"><section class="glass-panel h-100"><div class="panel-heading"><h2>📈 Completion rate</h2><span>Recent chores</span></div><canvas id="completionChart"></canvas></section></div><div class="col-lg-6"><section class="glass-panel h-100"><div class="panel-heading"><h2>➕ Earned vs deducted</h2></div><canvas id="earnedChart"></canvas></section></div><div class="col-lg-6"><section class="glass-panel h-100"><div class="panel-heading"><h2>⚖️ Workload distribution</h2></div><canvas id="workloadChart"></canvas></section></div></div>
-<div class="row g-4"><div class="col-xl-7"><section class="glass-panel mb-4"><div class="panel-heading"><h2>🧹 Today’s chores</h2><span>{{ chores|length }} assignments</span></div><div class="task-grid">{% for item in chores %}{% set kind='chore' %}{% include 'partials/task_card.html' %}{% else %}<p class="text-secondary">No chores today.</p>{% endfor %}</div></section><section class="glass-panel"><div class="panel-heading"><h2>📚 Homework</h2><span>{{ homework|length }} open</span></div><div class="task-grid">{% for item in homework %}{% set kind='homework' %}{% include 'partials/task_card.html' %}{% else %}<p class="text-secondary">No homework due.</p>{% endfor %}</div></section></div><div class="col-xl-5"><section class="glass-panel mb-4"><div class="panel-heading"><h2>🔔 Notifications</h2><a href="{{ url_for('main.notifications') }}">View all</a></div>{% for n in notifications %}<a class="notification-line {% if not n.read_at %}unread{% endif %}" href="{{ n.link or url_for('main.notifications') }}"><span>{{ n.icon }}</span><div><strong>{{ n.title }}</strong><small>{{ n.body }}</small></div></a>{% else %}<p class="text-secondary">You are all caught up.</p>{% endfor %}</section><section class="glass-panel"><div class="panel-heading"><h2>📰 Family news</h2><a href="{{ url_for('main.activity', view='household') }}">View all</a></div>{% for row in activity %}<div class="activity-line"><span>✨</span><div><strong>{{ row.actor.name if row.actor else 'System' }}</strong> {{ row.action }}<small>{{ row.created_at|eastern('%b %d · %I:%M %p %Z') }}</small></div></div>{% endfor %}</section></div></div>{% endblock %}
-{% block scripts %}<script>window.addEventListener('DOMContentLoaded',()=>{const P={{ points|tojson }},C={{ completion|tojson }},E={{ earned_vs_deducted|tojson }},W={{ workload|tojson }};const grid='rgba(255,255,255,.08)';new Chart(pointsChart,{type:'bar',data:{labels:P.map(x=>x.emoji+' '+x.name),datasets:[{label:'Points',data:P.map(x=>x.points),borderRadius:10,backgroundColor:['#9b6cff','#39d98a','#25b8ff']}]},options:{plugins:{legend:{display:false}},scales:{y:{grid:{color:grid}},x:{grid:{display:false}}}}});new Chart(completionChart,{type:'line',data:{labels:C.map(x=>x.name),datasets:[{label:'Completion %',data:C.map(x=>x.percent),fill:true,tension:.35,borderColor:'#35c2e8',backgroundColor:'rgba(53,194,232,.16)'}]},options:{scales:{y:{min:0,max:100,grid:{color:grid}},x:{grid:{display:false}}}}});new Chart(earnedChart,{type:'bar',data:{labels:E.map(x=>x.name),datasets:[{label:'Earned',data:E.map(x=>x.earned),backgroundColor:'#39d98a'},{label:'Deducted',data:E.map(x=>x.deducted),backgroundColor:'#ff6b7a'}]},options:{scales:{y:{grid:{color:grid}},x:{grid:{display:false}}}}});new Chart(workloadChart,{type:'doughnut',data:{labels:W.map(x=>x.name),datasets:[{data:W.map(x=>x.weight),backgroundColor:['#9b6cff','#39d98a','#25b8ff']}]},options:{plugins:{legend:{position:'bottom'}}}})});</script>{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<section class="dashboard-hero mb-4">
+  <div>
+    <p class="eyebrow mb-2">🏡 {{ 'Parent command center' if current_user.is_parent else ('House manager desk' if current_user.role == 'manager' else 'My family dashboard') }}</p>
+    <h1>Hello, {{ current_user.name }}! <span>👋</span></h1>
+    <p>Today’s work, tomorrow’s plan, and a fair rotation in one focused home base.</p>
+    <div class="hero-tags">
+      <span>{{ current_user.emoji }} {{ current_user.role|title }}</span>
+      <span>📅 Today’s plan</span>
+      <span>🔄 Rotation day {{ rotation_day }} of {{ rotation_length }}</span>
+      <span>🔐 Private family space</span>
+    </div>
+  </div>
+  <div class="hero-badge" aria-hidden="true"><span>🌿</span><strong>FAMILY</strong><small>IN SYNC</small></div>
+</section>
+
+<div class="row g-3 mb-4 metric-grid">
+  <div class="col-6 col-xl"><div class="metric-card tint-purple"><span>⭐ Family points</span><strong>{{ points|sum(attribute='points') }}</strong><small>Combined balance</small></div></div>
+  <div class="col-6 col-xl"><div class="metric-card tint-green"><span>✅ Pending approvals</span><strong>{{ pending_approvals }}</strong><small>Ready to review</small></div></div>
+  <div class="col-6 col-xl"><div class="metric-card tint-blue"><span>📚 Homework</span><strong>{{ homework|length }}</strong><small>Open or upcoming</small></div></div>
+  <div class="col-6 col-xl"><div class="metric-card tint-orange"><span>⚠️ Acknowledge</span><strong>{{ unacked }}</strong><small>Violation notices</small></div></div>
+  <div class="col-6 col-xl"><div class="metric-card tint-pink"><span>💬 Unread</span><strong>{{ unread_messages }}</strong><small>Family messages</small></div></div>
+  {% if current_user.is_parent %}<div class="col-6 col-xl"><div class="metric-card tint-red"><span>🔒 Grievances</span><strong>{{ open_grievances }}</strong><small>Open reviews</small></div></div>{% endif %}
+</div>
+
+<div class="tomorrow-rotation-grid mb-4">
+  <section class="glass-panel tomorrow-panel theme-panel-lagoon">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow mb-1">Next up · {{ tomorrow_date.strftime('%A, %b %d') }}</p>
+        <h2>{{ '🧭 Your assignments tomorrow' if tomorrow_is_personal else '🧭 Tomorrow’s family assignments' }}</h2>
+      </div>
+      <span>{{ tomorrow_chores|length }} planned</span>
+    </div>
+    <div class="tomorrow-list">
+      {% for item in tomorrow_chores %}
+      <article class="tomorrow-assignment" data-assignee="{{ item.assignee.name }}">
+        <span class="tomorrow-icon">{{ item.title.split(' ', 1)[0] }}</span>
+        <div>
+          <strong>{{ item.title.split(' ', 1)[1] if ' ' in item.title else item.title }}</strong>
+          <small>{{ item.assignee.name }} · {{ item.points }} points</small>
+        </div>
+        <span class="preview-chip">Preview</span>
+      </article>
+      {% else %}
+      <div class="empty-state"><span>🌤️</span><strong>No assignments tomorrow</strong></div>
+      {% endfor %}
+    </div>
+    <p class="tomorrow-note">🔒 Tomorrow’s list is a read-only preview. Completion opens on the assignment date.</p>
+  </section>
+
+  <section class="glass-panel rotation-panel theme-panel-gold">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow mb-1">Fairness check</p>
+        <h2>🔄 Basement + Bathrooms cycle</h2>
+      </div>
+      <span>{{ rotation_length }} days</span>
+    </div>
+    <div class="rotation-table" role="table" aria-label="Current Basement and Bathrooms rotation">
+      <div class="rotation-row rotation-head" role="row">
+        <span role="columnheader">Day</span><span role="columnheader">🛁 Bathrooms</span><span role="columnheader">📦 Basement</span>
+      </div>
+      {% for row in special_rotation %}
+      <div class="rotation-row {% if row.is_today %}is-today{% endif %}" role="row">
+        <span role="cell"><strong>{{ row.date.strftime('%a') }}</strong><small>{{ row.date.strftime('%b %d') }}{% if row.is_today %} · Today{% endif %}</small></span>
+        <span role="cell">{{ row.bathrooms }}</span>
+        <span role="cell">{{ row.basement }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="rotation-rule">✓ Everyone gets each job once. No repeats inside a rotation, and nobody gets both on the same day.</p>
+  </section>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6"><section class="glass-panel chart-panel theme-panel-copper h-100"><div class="panel-heading"><h2>⭐ Points balance</h2><span>&#36;{{ '%.2f'|format(money_rate) }} per point</span></div><canvas id="pointsChart"></canvas></section></div>
+  <div class="col-lg-6"><section class="glass-panel chart-panel theme-panel-lagoon h-100"><div class="panel-heading"><h2>📈 Completion rate</h2><span>Recent chores</span></div><canvas id="completionChart"></canvas></section></div>
+  <div class="col-lg-6"><section class="glass-panel chart-panel theme-panel-meadow h-100"><div class="panel-heading"><h2>➕ Earned vs deducted</h2></div><canvas id="earnedChart"></canvas></section></div>
+  <div class="col-lg-6"><section class="glass-panel chart-panel theme-panel-gold h-100"><div class="panel-heading"><h2>⚖️ Workload distribution</h2></div><canvas id="workloadChart"></canvas></section></div>
+</div>
+
+<div class="pulse-heading mb-3">
+  <div><p class="eyebrow mb-1">Live from your records</p><h2>🌤️ Household rhythm</h2><span>See what is moving, waiting, and improving.</span></div>
+  <div class="pulse-dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+</div>
+
+<div class="row g-4 mb-4 family-pulse-grid">
+  <div class="col-lg-5">
+    <section class="glass-panel pulse-chart theme-panel-coral h-100">
+      <div class="panel-heading"><h2>🎯 Chore status mix</h2><span>Last 30 days</span></div>
+      <canvas id="statusChart"></canvas>
+    </section>
+  </div>
+  <div class="col-lg-7">
+    <section class="glass-panel pulse-chart theme-panel-sage h-100">
+      <div class="panel-heading"><h2>🗓️ Seven-day review flow</h2><span>Approved · redo · open</span></div>
+      <canvas id="reviewChart"></canvas>
+    </section>
+  </div>
+  <div class="col-12">
+    <section class="glass-panel pulse-chart pulse-chart-wide theme-panel-harvest">
+      <div class="panel-heading"><h2>⚡ Daily point movement</h2><span>Net change · last 14 days</span></div>
+      <canvas id="movementChart"></canvas>
+    </section>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-7">
+    <section class="glass-panel panel-accent-lagoon mb-4">
+      <div class="panel-heading"><h2>🧹 Today’s chores</h2><span>{{ chores|length }} assignments</span></div>
+      <div class="task-grid">{% for item in chores %}{% set kind='chore' %}{% include 'partials/task_card.html' %}{% else %}<div class="empty-state"><span>✨</span><strong>No chores today</strong></div>{% endfor %}</div>
+    </section>
+    <section class="glass-panel panel-accent-gold">
+      <div class="panel-heading"><h2>📚 Homework</h2><span>{{ homework|length }} open</span></div>
+      <div class="task-grid">{% for item in homework %}{% set kind='homework' %}{% include 'partials/task_card.html' %}{% else %}<div class="empty-state"><span>🌙</span><strong>No homework due</strong></div>{% endfor %}</div>
+    </section>
+  </div>
+  <div class="col-xl-5">
+    <section class="glass-panel panel-accent-coral mb-4">
+      <div class="panel-heading"><h2>🔔 Notifications</h2><a href="{{ url_for('main.notifications') }}">View all</a></div>
+      {% for n in notifications %}<a class="notification-line {% if not n.read_at %}unread{% endif %}" href="{{ n.link or url_for('main.notifications') }}"><span>{{ n.icon }}</span><div><strong>{{ n.title }}</strong><small>{{ n.body }}</small></div></a>{% else %}<div class="empty-state"><span>🎉</span><strong>You are all caught up</strong></div>{% endfor %}
+    </section>
+    <section class="glass-panel panel-accent-meadow">
+      <div class="panel-heading"><h2>📰 Family news</h2><a href="{{ url_for('main.activity', view='household') }}">View all</a></div>
+      {% for row in activity %}<div class="activity-line"><span>✨</span><div><strong>{{ row.actor.name if row.actor else 'System' }}</strong> {{ row.action }}<small>{{ row.created_at|eastern('%b %d · %I:%M %p %Z') }}</small></div></div>{% else %}<div class="empty-state"><span>🏡</span><strong>No updates yet</strong></div>{% endfor %}
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  const P = {{ points|tojson }}, C = {{ completion|tojson }}, E = {{ earned_vs_deducted|tojson }}, W = {{ workload|tojson }};
+  const S = {{ chore_status|tojson }}, R = {{ review_week|tojson }}, M = {{ point_movement|tojson }};
+  const grid = 'rgba(218, 226, 202, .12)';
+  Chart.defaults.color = '#d9e2d2';
+  Chart.defaults.borderColor = grid;
+  Chart.defaults.font.family = 'Inter, ui-sans-serif, system-ui, sans-serif';
+  const palette = ['#f4c95d','#2dd4a0','#ef8354','#78c6e7','#a8d08d','#f09d51','#88b7b5'];
+  new Chart(document.getElementById('pointsChart'), {type:'bar',data:{labels:P.map(x=>x.emoji+' '+x.name),datasets:[{label:'Points',data:P.map(x=>x.points),borderRadius:12,backgroundColor:['#f4c95d','#2dd4a0','#ef8354','#78c6e7','#a8d08d']}]},options:{plugins:{legend:{display:false}},scales:{y:{grid:{color:grid}},x:{grid:{display:false}}}}});
+  new Chart(document.getElementById('completionChart'), {type:'line',data:{labels:C.map(x=>x.name),datasets:[{label:'Completion %',data:C.map(x=>x.percent),fill:true,tension:.38,borderWidth:4,pointRadius:6,pointBorderWidth:2,pointBorderColor:'#071411',pointBackgroundColor:'#f4c95d',borderColor:'#ef8354',backgroundColor:'rgba(239,131,84,.18)'}]},options:{scales:{y:{min:0,max:100,grid:{color:grid}},x:{grid:{display:false}}}}});
+  new Chart(document.getElementById('earnedChart'), {type:'bar',data:{labels:E.map(x=>x.name),datasets:[{label:'Earned',data:E.map(x=>x.earned),backgroundColor:'#2dd4a0',borderRadius:9},{label:'Deducted',data:E.map(x=>x.deducted),backgroundColor:'#ef6f61',borderRadius:9}]},options:{scales:{y:{grid:{color:grid}},x:{grid:{display:false}}}}});
+  new Chart(document.getElementById('workloadChart'), {type:'doughnut',data:{labels:W.map(x=>x.name),datasets:[{data:W.map(x=>x.weight),borderWidth:4,borderColor:'#10221d',backgroundColor:['#78c6e7','#ef8354','#f4c95d','#2dd4a0','#a8d08d']}]},options:{cutout:'62%',plugins:{legend:{position:'bottom',labels:{padding:18}}}}});
+  new Chart(document.getElementById('statusChart'), {type:'doughnut',data:{labels:S.map(x=>x.label),datasets:[{data:S.map(x=>x.value),backgroundColor:palette,borderWidth:4,borderColor:'#1c2118',hoverOffset:10}]},options:{cutout:'56%',plugins:{legend:{position:'bottom',labels:{padding:16,usePointStyle:true,pointStyle:'circle'}}}}});
+  new Chart(document.getElementById('reviewChart'), {type:'bar',data:{labels:R.map(x=>x.label+' '+x.date),datasets:[{label:'Approved',data:R.map(x=>x.approved),backgroundColor:'#2dd4a0',borderRadius:7},{label:'Needs redo',data:R.map(x=>x.redo),backgroundColor:'#ef8354',borderRadius:7},{label:'Open',data:R.map(x=>x.open),backgroundColor:'#78c6e7',borderRadius:7}]},options:{scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,ticks:{precision:0},grid:{color:grid}}},plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'rectRounded'}}}}});
+  new Chart(document.getElementById('movementChart'), {type:'bar',data:{labels:M.map(x=>x.label),datasets:[{label:'Net points',data:M.map(x=>x.net),backgroundColor:M.map(x=>x.net>=0?'#f4c95d':'#ef6f61'),borderColor:M.map(x=>x.net>=0?'#ffe5a0':'#f7a59d'),borderWidth:1,borderRadius:8}]},options:{scales:{x:{grid:{display:false}},y:{grid:{color:grid},ticks:{precision:0}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>(ctx.raw>=0?'+':'')+ctx.raw+' points'}}}}});
+});
+</script>
+{% endblock %}
