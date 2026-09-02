@@ -9,6 +9,7 @@ from flask import Flask
 
 from .extensions import csrf, db, login_manager, migrate
 from .services import backup_database, seed_defaults
+from .startup_migrations import run_startup_migrations
 
 
 def create_app(test_config: dict | None = None) -> Flask:
@@ -22,7 +23,12 @@ def create_app(test_config: dict | None = None) -> Flask:
         EXPORT_DIR=str(project_root / "exports"),
         BACKUP_DIR=str(project_root / "backups"),
         UPLOAD_DIR=str(project_root / "uploads"),
+        CHORE_PROOF_DIR=str(project_root / "uploads" / "chore_proofs"),
+        PROOF_IMAGE_MAX_BYTES=8 * 1024 * 1024,
+        PROOF_IMAGE_MAX_PIXELS=25_000_000,
         MAX_CONTENT_LENGTH=12 * 1024 * 1024,
+        AUTO_BACKUP_DATABASE=True,
+        SEED_DEFAULTS=True,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         REMEMBER_COOKIE_HTTPONLY=True,
@@ -48,7 +54,13 @@ def create_app(test_config: dict | None = None) -> Flask:
             value = value.replace(tzinfo=timezone.utc)
 
         return value.astimezone(eastern).strftime(date_format)
-    for folder in (app.instance_path, app.config["EXPORT_DIR"], app.config["BACKUP_DIR"], app.config["UPLOAD_DIR"]):
+    for folder in (
+        app.instance_path,
+        app.config["EXPORT_DIR"],
+        app.config["BACKUP_DIR"],
+        app.config["UPLOAD_DIR"],
+        app.config["CHORE_PROOF_DIR"],
+    ):
         Path(folder).mkdir(parents=True, exist_ok=True)
     db.init_app(app); migrate.init_app(app, db); login_manager.init_app(app); csrf.init_app(app)
     from .auth import bp as auth_bp
@@ -56,5 +68,13 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .parent import bp as parent_bp
     app.register_blueprint(auth_bp); app.register_blueprint(main_bp); app.register_blueprint(parent_bp)
     with app.app_context():
-        db.create_all(); seed_defaults(); backup_database()
+        # Preserve a pre-migration copy of an existing SQLite database. A fresh
+        # install has no file to back up until after its tables are created.
+        startup_backup = backup_database() if app.config["AUTO_BACKUP_DATABASE"] else None
+        db.create_all()
+        run_startup_migrations()
+        if app.config["SEED_DEFAULTS"]:
+            seed_defaults()
+        if app.config["AUTO_BACKUP_DATABASE"] and startup_backup is None:
+            backup_database()
     return app

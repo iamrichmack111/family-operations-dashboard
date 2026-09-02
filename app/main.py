@@ -8,14 +8,22 @@ from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
 from werkzeug.utils import secure_filename
 
+from .chore_rotation import (
+    ROTATION_LENGTH,
+    SPECIAL_ROTATION_CHORES,
+    chore_assignments_for,
+    rotation_cycle_start,
+    rotation_day_number,
+)
 from .extensions import db
 from .forms import FamilyPostForm, GrievanceForm, MessageForm
 from .models import Activity, Chore, Grievance, Homework, LoginEvent, Message, Notification, PointTransaction, ScheduleLock, Setting, User, Violation, ViolationCategory, ViolationRevision
+from .proof_images import ProofImageError, chore_proof_exists, chore_proof_path, delete_chore_proof, save_chore_proof
 from .services import add_points, backup_database, ensure_week, log_activity, money_rate, notify, notify_roles, point_balance, week_start_for, family_safe_activity, activity_is_family_safe
 
 bp = Blueprint("main", __name__)
@@ -84,12 +92,36 @@ def inject_notifications():
 @login_required
 def dashboard():
     ensure_week(date.today())
-    today = date.today(); week_start = today - timedelta(days=6)
+    today = date.today(); tomorrow = today + timedelta(days=1); week_start = today - timedelta(days=6)
     chore_query = db.select(Chore).where(Chore.task_date == today).order_by(Chore.id)
+    tomorrow_query = db.select(Chore).where(Chore.task_date == tomorrow).order_by(Chore.id)
     homework_query = db.select(Homework).where(Homework.status.notin_(["approved", "excused", "archived"]), Homework.due_date <= today + timedelta(days=7)).order_by(Homework.due_date)
     if current_user.role == "child":
         chore_query = chore_query.where(Chore.assigned_to == current_user.id); homework_query = homework_query.where(Homework.assigned_to == current_user.id)
-    chores = db.session.scalars(chore_query).all(); homework = db.session.scalars(homework_query).all()
+    if current_user.role in {"child", "manager"}:
+        tomorrow_query = tomorrow_query.where(Chore.assigned_to == current_user.id)
+    chores = db.session.scalars(chore_query).all(); tomorrow_chores = db.session.scalars(tomorrow_query).all(); homework = db.session.scalars(homework_query).all()
+
+    cycle_start = rotation_cycle_start(today)
+    special_rotation = []
+    for offset in range(ROTATION_LENGTH):
+        cycle_day = cycle_start + timedelta(days=offset)
+        assigned_to = {
+            title: person
+            for title, person, _points in chore_assignments_for(
+                cycle_day,
+                include_emoji=False,
+            )
+        }
+        special_rotation.append(
+            {
+                "date": cycle_day,
+                "day_number": offset + 1,
+                "is_today": cycle_day == today,
+                "bathrooms": assigned_to[SPECIAL_ROTATION_CHORES[0]],
+                "basement": assigned_to[SPECIAL_ROTATION_CHORES[1]],
+            }
+        )
     members = db.session.scalars(db.select(User).where(User.role.in_(["manager", "child"]), User.active.is_(True)).order_by(User.name)).all()
     points=[]; completion=[]; earned_vs_deducted=[]; workload=[]
     for member in members:
@@ -103,22 +135,141 @@ def dashboard():
         completion.append({"name":member.name,"percent":round(complete/total*100) if total else 0})
         earned_vs_deducted.append({"name":member.name,"earned":earned,"deducted":deducted})
         workload.append({"name":member.name,"weight":load})
+
+    # Extra family pulse charts use real persisted records and fixed date
+    # windows, so the dashboard remains useful even on days with no activity.
+    status_start = today - timedelta(days=29)
+    status_rows = db.session.execute(
+        db.select(Chore.status, func.count(Chore.id))
+        .where(Chore.task_date >= status_start)
+        .group_by(Chore.status)
+    ).all()
+    status_counts = {status: int(count) for status, count in status_rows}
+    status_labels = {
+        "approved": "Approved",
+        "assigned": "Assigned",
+        "completed": "Waiting approval",
+        "needs_redo": "Needs redo",
+        "excused": "Excused",
+    }
+    chore_status = [
+        {"label": status_labels[status], "value": status_counts.get(status, 0)}
+        for status in ("approved", "assigned", "completed", "needs_redo", "excused")
+        if status_counts.get(status, 0)
+    ]
+
+    review_start = today - timedelta(days=6)
+    review_rows = db.session.execute(
+        db.select(Chore.task_date, Chore.status, func.count(Chore.id))
+        .where(Chore.task_date >= review_start, Chore.task_date <= today)
+        .group_by(Chore.task_date, Chore.status)
+    ).all()
+    review_counts = {
+        (task_date, status): int(count)
+        for task_date, status, count in review_rows
+    }
+    review_week = []
+    for offset in range(7):
+        day = review_start + timedelta(days=offset)
+        review_week.append(
+            {
+                "label": day.strftime("%a"),
+                "date": day.strftime("%b %d"),
+                "approved": review_counts.get((day, "approved"), 0),
+                "redo": review_counts.get((day, "needs_redo"), 0),
+                "open": review_counts.get((day, "assigned"), 0)
+                + review_counts.get((day, "completed"), 0),
+            }
+        )
+
+    movement_start = today - timedelta(days=13)
+    movement_day = func.date(PointTransaction.created_at)
+    movement_rows = db.session.execute(
+        db.select(movement_day, func.coalesce(func.sum(PointTransaction.amount), 0))
+        .where(
+            PointTransaction.created_at
+            >= datetime.combine(movement_start, datetime.min.time(), tzinfo=timezone.utc)
+        )
+        .group_by(movement_day)
+    ).all()
+    movement_counts = {str(day): int(amount or 0) for day, amount in movement_rows}
+    point_movement = [
+        {
+            "label": (movement_start + timedelta(days=offset)).strftime("%b %d"),
+            "net": movement_counts.get(
+                (movement_start + timedelta(days=offset)).isoformat(), 0
+            ),
+        }
+        for offset in range(14)
+    ]
+
     pending = int(db.session.scalar(db.select(func.count()).select_from(Chore).where(Chore.status=="completed")) or 0)+int(db.session.scalar(db.select(func.count()).select_from(Homework).where(Homework.status=="completed")) or 0)
     unread_messages=int(db.session.scalar(db.select(func.count(Message.id)).where(Message.recipient_id==current_user.id,Message.read_at.is_(None))) or 0)
     unacked=int(db.session.scalar(db.select(func.count(Violation.id)).where(Violation.subject_user_id==current_user.id,Violation.status=="issued")) or 0)
     open_grievances=int(db.session.scalar(db.select(func.count(Grievance.id)).where(Grievance.status.in_(["open","under_review"]))) or 0) if current_user.is_parent else 0
     notifications=db.session.scalars(db.select(Notification).where(Notification.user_id==current_user.id).order_by(Notification.created_at.desc()).limit(8)).all()
     activity=family_safe_activity(10)
-    return render_template("dashboard.html", chores=chores,homework=homework,points=points,completion=completion,earned_vs_deducted=earned_vs_deducted,workload=workload,money_rate=money_rate(),pending_approvals=pending,unacked=unacked,open_grievances=open_grievances,unread_messages=unread_messages,notifications=notifications,activity=activity)
+    return render_template(
+        "dashboard.html",
+        chores=chores,
+        tomorrow_chores=tomorrow_chores,
+        tomorrow_date=tomorrow,
+        tomorrow_is_personal=current_user.role in {"child", "manager"},
+        rotation_day=rotation_day_number(today),
+        rotation_length=ROTATION_LENGTH,
+        special_rotation=special_rotation,
+        homework=homework,
+        points=points,
+        completion=completion,
+        earned_vs_deducted=earned_vs_deducted,
+        workload=workload,
+        chore_status=chore_status,
+        review_week=review_week,
+        point_movement=point_movement,
+        money_rate=money_rate(),
+        pending_approvals=pending,
+        unacked=unacked,
+        open_grievances=open_grievances,
+        unread_messages=unread_messages,
+        notifications=notifications,
+        activity=activity,
+    )
 
 
 @bp.post("/tasks/<kind>/<int:item_id>/complete")
 @login_required
 def complete_task(kind,item_id):
     model=task_model(kind); item=db.session.get(model,item_id) if model else None
-    if not item or (current_user.role=="child" and item.assigned_to!=current_user.id):
+    if not item or item.status not in {"assigned", "needs_redo"} or (current_user.role=="child" and item.assigned_to!=current_user.id):
         flash("🚫 You cannot complete that item.","danger"); return redirect(url_for("main.dashboard"))
-    item.status="completed"; item.completed_by=current_user.id; item.note=request.form.get("note","").strip(); db.session.commit()
+    if kind == "chore" and item.task_date > date.today():
+        flash("🧭 This is a preview. The chore can be completed on its assignment date.", "warning")
+        return redirect(request.referrer or url_for("main.dashboard"))
+
+    old_proof_name = item.proof_photo_name if kind == "chore" else ""
+    new_proof_name = ""
+    if kind == "chore":
+        try:
+            new_proof_name = save_chore_proof(request.files.get("proof_photo"), item.id)
+        except ProofImageError as exc:
+            if wants_htmx():
+                return render_template("partials/task_card.html", item=item, kind=kind, proof_error=str(exc))
+            flash(f"📷 {exc}", "danger")
+            return redirect(request.referrer or url_for("main.dashboard"))
+
+    item.status="completed"
+    item.completed_by=current_user.id
+    if kind == "chore":
+        item.note=request.form.get("note","").strip()
+        item.proof_photo_name = new_proof_name
+    try:
+        db.session.commit()
+    except Exception:
+        if new_proof_name:
+            delete_chore_proof(new_proof_name)
+        raise
+    if old_proof_name and old_proof_name != new_proof_name:
+        delete_chore_proof(old_proof_name)
     notify_roles({"parent","manager"},"✅",f"{item.assignee.name} completed {kind}",item.title,url_for("main.approvals"))
     log_activity(current_user.id,"marked complete",kind,item.id,item.title)
     if wants_htmx(): return render_template("partials/task_card.html",item=item,kind=kind)
@@ -133,8 +284,21 @@ def review_task(kind,item_id):
     item = db.session.get(model, item_id) if model else None
     status = request.form.get("status")
 
-    if not item or status not in {"approved", "needs_redo", "excused"}:
+    if not item or item.status != "completed" or status not in {"approved", "needs_redo", "excused"}:
         flash("🚫 Invalid review.", "danger")
+        return redirect(url_for("main.approvals"))
+
+    if status == "approved" and kind == "chore" and not chore_proof_exists(item.proof_photo_name):
+        message = "Photo proof is required before this chore can be approved. Needs Redo and Excuse are still available."
+        if wants_htmx():
+            return render_template(
+                "partials/approval_row.html",
+                item=item,
+                kind=kind,
+                has_proof=False,
+                approval_error=message,
+            )
+        flash(f"📷 {message}", "danger")
         return redirect(url_for("main.approvals"))
 
     old_status = item.status
@@ -176,7 +340,12 @@ def review_task(kind,item_id):
     )
 
     if wants_htmx():
-        return render_template("partials/approval_row.html", item=item, kind=kind)
+        return render_template(
+            "partials/approval_row.html",
+            item=item,
+            kind=kind,
+            has_proof=(kind != "chore" or chore_proof_exists(item.proof_photo_name)),
+        )
     return redirect(url_for("main.approvals"))
 
 
@@ -186,7 +355,25 @@ def review_task(kind,item_id):
 def approvals():
     chores=db.session.scalars(db.select(Chore).where(Chore.status=="completed").order_by(Chore.task_date)).all()
     homework=db.session.scalars(db.select(Homework).where(Homework.status=="completed").order_by(Homework.due_date)).all()
-    return render_template("approvals.html",chores=chores,homework=homework)
+    chore_proof_ids={item.id for item in chores if chore_proof_exists(item.proof_photo_name)}
+    return render_template("approvals.html",chores=chores,homework=homework,chore_proof_ids=chore_proof_ids)
+
+
+@bp.get("/chores/<int:item_id>/proof")
+@login_required
+def chore_proof(item_id):
+    item = db.session.get(Chore, item_id)
+    if item is None or not item.proof_photo_name:
+        abort(404)
+    if not current_user.can_approve and current_user.id not in {item.assigned_to, item.completed_by}:
+        abort(403)
+    path = chore_proof_path(item.proof_photo_name)
+    if path is None or not path.is_file():
+        abort(404)
+    response = send_file(path, conditional=True, max_age=0)
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @bp.route("/messages",methods=("GET","POST"))
