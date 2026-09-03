@@ -10,6 +10,17 @@ ROTATION_ANCHOR = date(2026, 7, 27)
 ROTATION_LENGTH = len(PEOPLE)
 SPECIAL_ROTATION_CHORES = ("Bathrooms", "Basement")
 
+# One-day household exceptions. These do not change the normal three-day
+# fairness rule for future rotations.
+DATED_CHORE_OVERRIDES = {
+    # Sep 3 only: swap the Basement/Laundry pair with the Bathrooms/Kitchen
+    # deep-clean pair. Zara keeps a normal workload but does not get Basement.
+    (date(2026, 9, 3), "Basement"): "Jasmin",
+    (date(2026, 9, 3), "Laundry"): "Jasmin",
+    (date(2026, 9, 3), "Bathrooms"): "Zara",
+    (date(2026, 9, 3), "Kitchen deep clean"): "Zara",
+}
+
 # Each tuple is: title, emoji, points, role slot.
 # Role slot 0 is the cook role and is intentionally exclusive for that day.
 # Slots 1 and 2 split the rest of the household work. Basement + Laundry stay
@@ -47,7 +58,8 @@ def chore_assignments_for(day: date, *, include_emoji: bool = True) -> list[tupl
 
     for title, emoji, points, role_slot in CHORE_ROTATION:
         display_title = f"{emoji} {title}" if include_emoji else title
-        assignments.append((display_title, people_by_role[role_slot], points))
+        assignee = DATED_CHORE_OVERRIDES.get((day, title), people_by_role[role_slot])
+        assignments.append((display_title, assignee, points))
 
     return assignments
 

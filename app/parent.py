@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 from .extensions import db
 from .forms import HomeworkForm, MoneyRateForm, NewUserForm, PinForm, PointAdjustmentForm, ViolationForm
 from .main import role_required
-from .models import Chore, Grievance, Homework, PointTransaction, ScheduleLock, Setting, User, Violation, ViolationCategory, ViolationRevision
+from .models import Chore, Grievance, Homework, PointRequest, PointTransaction, ScheduleLock, Setting, User, Violation, ViolationCategory, ViolationRevision
 from .services import add_points, ensure_week, log_activity, notify, point_balance, week_start_for
 
 bp = Blueprint("parent", __name__, url_prefix="/parent")
@@ -64,6 +64,54 @@ def center():
 def grievances_page():
     rows = db.session.scalars(db.select(Grievance).order_by(Grievance.created_at.desc())).all()
     return render_template("parent_grievances.html", grievances=rows)
+
+
+@bp.route("/point-requests")
+@login_required
+@role_required("parent")
+def point_requests_page():
+    rows = db.session.scalars(db.select(PointRequest).order_by(PointRequest.created_at.desc()).limit(200)).all()
+    return render_template("parent_point_requests.html", point_requests=rows)
+
+
+@bp.post("/point-request/<int:request_id>")
+@login_required
+@role_required("parent")
+def resolve_point_request(request_id):
+    row = db.session.get(PointRequest, request_id)
+    action = request.form.get("action", "").strip()
+    response = request.form.get("response", "").strip()
+
+    if not row or row.status != "pending" or action not in {"approve", "deny"}:
+        flash("🚫 That point request cannot be updated.", "danger")
+        return redirect(url_for("parent.point_requests_page"))
+
+    row.status = "approved" if action == "approve" else "denied"
+    row.parent_response = response
+    row.resolved_by = current_user.id
+    row.resolved_at = datetime.now(timezone.utc)
+    db.session.commit()
+
+    if action == "approve":
+        add_points(
+            row.requested_by,
+            row.requested_points,
+            f"Approved point request #{row.id}: {row.category} — {row.task}",
+            "point_request",
+            row.id,
+            current_user.id,
+        )
+
+    notify(
+        row.requested_by,
+        "⭐" if action == "approve" else "📝",
+        f"Point request #{row.id} {row.status}",
+        response or (f"+{row.requested_points} points" if action == "approve" else "Request declined"),
+        url_for("main.points_ledger") + "#request-points",
+    )
+    log_activity(current_user.id, f"{row.status} point request", "point_request", row.id, response)
+    flash("⭐ Point request updated.", "success")
+    return redirect(url_for("parent.point_requests_page"))
 
 
 @bp.route("/violations", methods=("GET",))

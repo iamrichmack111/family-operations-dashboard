@@ -128,6 +128,22 @@ class Grievance(TimestampMixin, db.Model):
     responder = db.relationship("User", foreign_keys=[responded_by])
 
 
+class PointRequest(TimestampMixin, db.Model):
+    __tablename__ = "point_requests"
+    id = db.Column(db.Integer, primary_key=True)
+    requested_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    category = db.Column(db.String(60), nullable=False, index=True)
+    task = db.Column(db.String(180), nullable=False)
+    details = db.Column(db.Text, default="", nullable=False)
+    requested_points = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(30), default="pending", nullable=False, index=True)
+    parent_response = db.Column(db.Text, default="", nullable=False)
+    resolved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    resolved_at = db.Column(db.DateTime(timezone=True))
+    requester = db.relationship("User", foreign_keys=[requested_by])
+    resolver = db.relationship("User", foreign_keys=[resolved_by])
+
+
 violation_items = db.Table(
     "violation_items",
     db.Column("violation_id", db.Integer, db.ForeignKey("violations.id", ondelete="CASCADE"), primary_key=True),

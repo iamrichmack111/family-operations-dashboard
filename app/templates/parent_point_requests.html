@@ -1,0 +1,12 @@
+{% extends 'base.html' %}{% block content %}
+<div class="page-title"><h1>⭐ Point request inbox</h1><p>Review extra-work requests. Points are added only after approval.</p></div>
+<div class="vstack gap-3">
+{% for req in point_requests %}
+<article class="glass-panel">
+  <div class="d-flex justify-content-between gap-3 flex-wrap"><div><h2 class="h5 mb-1">#{{ req.id }} · {{ req.requester.emoji }} {{ req.requester.name }} · {{ req.category }}</h2><small class="text-secondary">Submitted {{ req.created_at|eastern('%b %d, %Y · %I:%M %p %Z') }}</small></div><span class="badge status-badge align-self-start">{{ req.status|title }}</span></div>
+  <h3 class="h6 mt-3">{{ req.task }}</h3>{% if req.details %}<p>{{ req.details }}</p>{% endif %}<p class="mb-3"><strong>Requested:</strong> {{ req.requested_points }} points</p>
+  {% if req.status == 'pending' %}<form method="post" action="{{ url_for('parent.resolve_point_request',request_id=req.id) }}" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="col-md-8"><input class="form-control dark-field" name="response" maxlength="500" placeholder="Optional parent note"></div><div class="col-md-4 d-flex gap-2"><button class="btn btn-outline-success flex-fill" name="action" value="approve">✓ Approve +{{ req.requested_points }}</button><button class="btn btn-outline-danger flex-fill" name="action" value="deny">✕ Deny</button></div></form>{% else %}<div class="response-box"><strong>{{ req.status|title }}</strong>{% if req.resolved_at %}<small class="d-block text-secondary">{{ req.resolved_at|eastern('%b %d, %Y · %I:%M %p %Z') }}</small>{% endif %}<p class="mb-0">{{ req.parent_response or 'No parent note.' }}</p></div>{% endif %}
+</article>
+{% else %}<div class="glass-panel">No point requests yet.</div>{% endfor %}
+</div>
+{% endblock %}

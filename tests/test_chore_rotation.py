@@ -34,7 +34,12 @@ class ChoreRotationTests(unittest.TestCase):
 
             expected_titles = {title for title, _emoji, _points, _slot in rotation.CHORE_ROTATION}
             self.assertEqual(set(per_chore), expected_titles)
-            self.assertTrue(all(Counter(people) == Counter(rotation.PEOPLE) for people in per_chore.values()))
+            cycle_has_override = any(
+                cycle_start <= override_day < cycle_start + timedelta(days=rotation.ROTATION_LENGTH)
+                for override_day, _title in rotation.DATED_CHORE_OVERRIDES
+            )
+            if not cycle_has_override:
+                self.assertTrue(all(Counter(people) == Counter(rotation.PEOPLE) for people in per_chore.values()))
 
     def test_cook_and_dishes_is_the_only_assignment_for_that_person(self):
         for offset in range(180):
@@ -64,6 +69,31 @@ class ChoreRotationTests(unittest.TestCase):
             cook = next(person for title, person, _points in assignments if title == "Cook and dishes")
             self.assertNotEqual(cook, "Zara")
 
+    def test_cook_and_dishes_never_repeats_on_consecutive_days(self):
+        previous = None
+        for offset in range(365 * 3):
+            day = rotation.ROTATION_ANCHOR + timedelta(days=offset)
+            assignments = rotation.chore_assignments_for(day, include_emoji=False)
+            cook = next(person for title, person, _points in assignments if title == "Cook and dishes")
+            if previous is not None:
+                self.assertNotEqual(cook, previous)
+            previous = cook
+
+    def test_september_2026_cycle_order_and_zara_basement_exception(self):
+        expected_cooks = {
+            rotation.date(2026, 9, 1): "Zara",
+            rotation.date(2026, 9, 2): "Jasmin",
+            rotation.date(2026, 9, 3): "Aria",
+        }
+        for day, expected in expected_cooks.items():
+            assignments = rotation.chore_assignments_for(day, include_emoji=False)
+            cook = next(person for title, person, _points in assignments if title == "Cook and dishes")
+            self.assertEqual(cook, expected)
+
+        today = rotation.chore_assignments_for(rotation.date(2026, 9, 3), include_emoji=False)
+        basement = next(person for title, person, _points in today if title == "Basement")
+        self.assertNotEqual(basement, "Zara")
+
     def test_cycle_helpers_identify_all_three_days(self):
         for offset in range(rotation.ROTATION_LENGTH * 12):
             day = rotation.ROTATION_ANCHOR + timedelta(days=offset)
@@ -86,7 +116,12 @@ class ChoreRotationTests(unittest.TestCase):
                     totals[person] += points
                 self.assertEqual(sorted(daily.values()), [4, 6, 7])
 
-            self.assertEqual(totals, Counter({person: 17 for person in rotation.PEOPLE}))
+            cycle_has_override = any(
+                cycle_start <= override_day < cycle_start + timedelta(days=rotation.ROTATION_LENGTH)
+                for override_day, _title in rotation.DATED_CHORE_OVERRIDES
+            )
+            if not cycle_has_override:
+                self.assertEqual(totals, Counter({person: 17 for person in rotation.PEOPLE}))
 
 
 if __name__ == "__main__":

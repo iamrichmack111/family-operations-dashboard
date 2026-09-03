@@ -22,7 +22,7 @@ from .chore_rotation import (
 )
 from .extensions import db
 from .forms import FamilyPostForm, GrievanceForm, MessageForm
-from .models import Activity, Chore, FamilyEvent, FamilyGoal, FamilyPoll, FamilyPollVote, Grievance, HouseholdAnnouncement, Homework, LoginEvent, Message, Notification, PointTransaction, Reward, RewardRedemption, PurchaseRequest, ChoreTrade, ScheduleLock, Setting, ShoppingItem, User, Violation, ViolationCategory, ViolationRevision
+from .models import Activity, Chore, FamilyEvent, FamilyGoal, FamilyPoll, FamilyPollVote, Grievance, HouseholdAnnouncement, Homework, LoginEvent, Message, Notification, PointTransaction, PointRequest, Reward, RewardRedemption, PurchaseRequest, ChoreTrade, ScheduleLock, Setting, ShoppingItem, User, Violation, ViolationCategory, ViolationRevision
 from .proof_images import ProofImageError, chore_proof_exists, chore_proof_path, delete_chore_proof, save_chore_proof
 from .services import add_points, backup_database, ensure_week, log_activity, money_rate, notify, notify_roles, point_balance, week_start_for, family_safe_activity, activity_is_family_safe
 
@@ -477,6 +477,21 @@ def activity():
     )
 
 
+POINT_REQUEST_CATEGORIES = (
+    "Jobs",
+    "Coding / Tech",
+    "Cooking",
+    "Cleaning",
+    "Yard Work",
+    "School / Homework",
+    "Helping Family",
+    "Repairs / Setup",
+    "Organization",
+    "Errands",
+    "Other",
+)
+
+
 @bp.route("/points")
 @login_required
 def points_ledger():
@@ -486,7 +501,55 @@ def points_ledger():
     rows = db.session.scalars(query.limit(500)).all()
     members = db.session.scalars(db.select(User).where(User.role.in_(["manager", "child"]), User.active.is_(True)).order_by(User.name)).all()
     balances = [{"user": member, "points": point_balance(member.id), "money": point_balance(member.id) * money_rate()} for member in members]
-    return render_template("points.html", rows=rows, balances=balances, rate=money_rate())
+    request_query = db.select(PointRequest).order_by(PointRequest.created_at.desc())
+    if not current_user.is_parent:
+        request_query = request_query.where(PointRequest.requested_by == current_user.id)
+    point_requests = db.session.scalars(request_query.limit(100)).all()
+    return render_template(
+        "points.html",
+        rows=rows,
+        balances=balances,
+        rate=money_rate(),
+        point_requests=point_requests,
+        request_categories=POINT_REQUEST_CATEGORIES,
+    )
+
+
+@bp.post("/points/request")
+@login_required
+def request_points():
+    if current_user.is_parent:
+        flash("👑 Parent accounts can add points directly from Parent Center.", "warning")
+        return redirect(url_for("main.points_ledger"))
+
+    category = request.form.get("category", "").strip()
+    task = request.form.get("task", "").strip()
+    details = request.form.get("details", "").strip()
+    requested_points = request.form.get("requested_points", type=int)
+
+    if category not in POINT_REQUEST_CATEGORIES or not task or requested_points is None or not 1 <= requested_points <= 350:
+        flash("🚫 Choose a category, describe the task, and request between 1 and 350 points.", "danger")
+        return redirect(url_for("main.points_ledger") + "#request-points")
+
+    row = PointRequest(
+        requested_by=current_user.id,
+        category=category,
+        task=task[:180],
+        details=details[:8000],
+        requested_points=requested_points,
+    )
+    db.session.add(row)
+    db.session.commit()
+    notify_roles(
+        {"parent"},
+        "⭐",
+        f"Point request from {current_user.name}",
+        f"{category}: {task[:90]} · {requested_points} points",
+        url_for("parent.point_requests_page"),
+    )
+    log_activity(current_user.id, "requested points", "point_request", row.id, f"{category}: {requested_points} pts")
+    flash("⭐ Point request sent to the parents.", "success")
+    return redirect(url_for("main.points_ledger") + "#request-points")
 
 
 @bp.route("/reports")
@@ -518,7 +581,7 @@ def exports(): return render_template("exports.html")
 @role_required("parent")
 def create_export():
     stamp=datetime.now().strftime("%Y%m%d-%H%M%S"); root=Path(current_app.config["EXPORT_DIR"]); folder=root/f"family-export-{stamp}"; folder.mkdir(parents=True,exist_ok=True)
-    models={"users":User,"chores":Chore,"homework":Homework,"messages":Message,"grievances":Grievance,"violations":Violation,"violation_categories":ViolationCategory,"violation_revisions":ViolationRevision,"points":PointTransaction,"notifications":Notification,"activity":Activity,"login_events":LoginEvent,"schedule_locks":ScheduleLock,"family_events":FamilyEvent,"shopping_items":ShoppingItem,"family_goals":FamilyGoal,"rewards":Reward,"reward_redemptions":RewardRedemption,"purchase_requests":PurchaseRequest,"chore_trades":ChoreTrade,"household_announcements":HouseholdAnnouncement,"family_polls":FamilyPoll,"family_poll_votes":FamilyPollVote}
+    models={"users":User,"chores":Chore,"homework":Homework,"messages":Message,"grievances":Grievance,"violations":Violation,"violation_categories":ViolationCategory,"violation_revisions":ViolationRevision,"points":PointTransaction,"notifications":Notification,"activity":Activity,"login_events":LoginEvent,"schedule_locks":ScheduleLock,"family_events":FamilyEvent,"shopping_items":ShoppingItem,"family_goals":FamilyGoal,"rewards":Reward,"reward_redemptions":RewardRedemption,"purchase_requests":PurchaseRequest,"point_requests":PointRequest,"chore_trades":ChoreTrade,"household_announcements":HouseholdAnnouncement,"family_polls":FamilyPoll,"family_poll_votes":FamilyPollVote}
     manifest={}
     for name,model in models.items():
         data=[]
