@@ -184,3 +184,106 @@ branch, and open the pull request. See `BRANCH_AND_PR.md` for the manual command
 ![Playwright](https://img.shields.io/badge/Tested-Playwright-success)
 ![Tailscale](https://img.shields.io/badge/Deploy-Tailscale-blue)
 ![Self Hosted](https://img.shields.io/badge/Deployment-Self--Hosted-informational)
+
+<!-- RICHMACK-FAMILY-SHOWCASE -->
+
+# Family Operations — Current Build
+
+[![Family Operations CI/CD](https://github.com/iamrichmack111/family-operations-dashboard/actions/workflows/deploy-family.yml/badge.svg)](https://github.com/iamrichmack111/family-operations-dashboard/actions/workflows/deploy-family.yml)
+
+![Python](https://img.shields.io/badge/Python-Flask-blue)
+![Playwright](https://img.shields.io/badge/Testing-Playwright-45ba4b)
+![Tailscale](https://img.shields.io/badge/Deploy-Tailscale-242424)
+![Docker](https://img.shields.io/badge/Docker-GHCR-2496ED)
+![Release](https://img.shields.io/badge/release-v59.1-purple)
+
+A self-hosted family operations platform for chores, homework, points, rewards, approvals, item requests, goals, themes, announcements, and household accountability.
+
+## Features
+
+### Kid Accounts
+- Spend My Points
+- 25 / 50 / 100 / 250 / 500 point shortcuts
+- Custom point deductions
+- Balance meter
+- Searchable point history
+- Savings goals
+- Wishlist
+- Achievement badges
+- Earning streaks
+- Family Hub
+
+### Item Requests
+- Points deducted immediately when submitted
+- Insufficient-balance protection
+- Pending / Approved / Denied tracking
+- Searchable request history
+
+### Parent Approvals
+- Approve
+- Approve + Transfer
+- Chore and homework filters
+- Pending totals
+- Confirmation protection
+- Double-submit protection
+- Safer point reversals
+
+### 100 Themes
+- Dark
+- Neon
+- Nature
+- Luxury
+- Retro
+- Light
+- Seasonal
+- Kids
+- Minimal
+- Cosmic
+- Search and category filters
+- Favorites and recent themes
+- Compact mode
+- Larger text
+- Reduced motion
+
+### Family Hub
+- Savings goals
+- Wishlist
+- Affordability tracking
+- Achievement badges
+- Point streaks
+- Family announcements
+- Quick statistics
+
+## Playwright Screenshots
+
+### Dashboard
+![Dashboard](docs/screenshots/01-home.png)
+
+### Points
+![Points](docs/screenshots/02-points.png)
+
+### Approvals
+![Approvals](docs/screenshots/03-approvals.png)
+
+## CI/CD
+
+Every push to main can run tests, CodeQL, Docker builds, Playwright screenshots, screenshot updates, and Tailscale deployment to the Family Operations server.
+
+## Production
+
+Live application:
+
+`/home/richmack/v46-new`
+
+Backend:
+
+`127.0.0.1:8011`
+
+Deployment:
+
+GitHub → GitHub Actions → Tailscale → Family Operations Server → Gunicorn :8011 → Tailscale Serve
+
+## Current Release
+
+**v59.1**
+
