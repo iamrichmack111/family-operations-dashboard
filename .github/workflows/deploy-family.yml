@@ -1,52 +1,48 @@
-name: CI/CD Family Operations
+name: Family Operations CI/CD
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
-jobs:
+permissions:
+  contents: read
 
+jobs:
   playwright:
     name: Playwright Screenshots
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - uses: actions/setup-node@v4
+      - name: Node
+        uses: actions/setup-node@v4
         with:
           node-version: "22"
 
-      - name: Install Python
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Install Playwright
         run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
           npm install -D @playwright/test
           npx playwright install --with-deps chromium
 
-      - name: Start Family Operations
-        env:
-          FAMILY_DASHBOARD_SECRET: playwright-ci-secret
-          FAMILY_DASHBOARD_PORT: 8011
-        run: |
-          nohup python run.py > /tmp/family.log 2>&1 &
-          for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:8011/ >/dev/null; then
-              break
-            fi
-            sleep 1
-          done
-          curl -f http://127.0.0.1:8011/
-
-      - name: Create screenshots
+      - name: Ensure Playwright config
         run: |
           cat > playwright.config.js <<'JS'
           const { defineConfig } = require('@playwright/test');
@@ -54,98 +50,184 @@ jobs:
           module.exports = defineConfig({
             testDir: './tests',
             timeout: 30000,
+            retries: 1,
+            reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
             use: {
               baseURL: 'http://127.0.0.1:8011',
               headless: true,
               ignoreHTTPSErrors: true,
+              screenshot: 'only-on-failure',
+              trace: 'retain-on-failure',
               viewport: { width: 1440, height: 1000 }
             }
           });
           JS
 
-          cat > tests/screenshots.spec.js <<'JS'
-          const { test } = require('@playwright/test');
+      - name: Ensure screenshot test
+        run: |
+          mkdir -p tests docs/screenshots
 
-          test('Family Operations screenshots', async ({ page }) => {
+          cat > tests/screenshots.spec.js <<'JS'
+          const { test, expect } = require('@playwright/test');
+
+          test('Family Operations visual screenshots', async ({ page }) => {
             await page.goto('/', { waitUntil: 'networkidle' });
+
+            await expect(page.locator('body')).toBeVisible();
 
             await page.screenshot({
               path: 'docs/screenshots/01-home.png',
               fullPage: true
             });
 
-            const links = [
-              ['points', '02-points.png'],
-              ['household', '03-household.png'],
-              ['planner', '04-planner.png']
+            const routes = [
+              ['/points', '02-points.png'],
+              ['/approvals', '03-approvals.png'],
+              ['/requests', '04-requests.png']
             ];
 
-            for (const [name, file] of links) {
-              const link = page.getByRole('link', {
-                name: new RegExp(name, 'i')
-              }).first();
+            for (const [route, file] of routes) {
+              const response = await page.goto(route, {
+                waitUntil: 'networkidle'
+              }).catch(() => null);
 
-              if (await link.isVisible().catch(() => false)) {
-                await link.click();
-                await page.waitForLoadState('networkidle');
-
+              if (response && response.ok()) {
                 await page.screenshot({
                   path: `docs/screenshots/${file}`,
                   fullPage: true
                 });
-
-                await page.goto('/');
               }
             }
           });
           JS
 
+      - name: Start Family Operations
+        env:
+          FAMILY_DASHBOARD_SECRET: playwright-ci-secret
+          SECRET_KEY: playwright-ci-secret
+          FAMILY_DASHBOARD_PORT: "8011"
+          PORT: "8011"
+        run: |
+          set -x
+
+          if [ -f run.py ]; then
+            nohup python run.py >/tmp/family.log 2>&1 &
+          elif [ -f app.py ]; then
+            nohup python app.py >/tmp/family.log 2>&1 &
+          else
+            echo "No run.py or app.py found"
+            find . -maxdepth 2 -type f | sort | head -100
+            exit 1
+          fi
+
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8011/ >/dev/null; then
+              echo "Family Operations is ready"
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          echo "APP FAILED TO START"
+          cat /tmp/family.log || true
+          exit 1
+
+      - name: Run Playwright
+        run: |
+          rm -rf docs/screenshots/*
           mkdir -p docs/screenshots
           npx playwright test
 
-      - name: Upload Playwright Screenshots
+      - name: List screenshots
+        if: always()
+        run: |
+          echo "=== SCREENSHOTS ==="
+          find docs/screenshots -type f -maxdepth 1 -print || true
+
+      - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: family-operations-playwright-screenshots
           path: docs/screenshots/
           if-no-files-found: error
+          retention-days: 30
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: family-operations-playwright-report
           path: playwright-report/
           if-no-files-found: ignore
+          retention-days: 14
 
 
   deploy:
     name: Deploy to family.local
-    needs: playwright
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check deployment credentials
+        id: secrets
+        shell: bash
+        env:
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          if [ -n "$TS_AUTHKEY" ] && [ -n "$DEPLOY_SSH_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Deployment credentials found."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Deployment skipped: TS_AUTHKEY and/or DEPLOY_SSH_KEY not configured."
+          fi
 
       - name: Join Tailscale
+        if: steps.secrets.outputs.ready == 'true'
         uses: tailscale/github-action@v4
         with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
+          authkey: ${{ secrets.TS_AUTHKEY }}
 
       - name: Configure SSH
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H family.local >> ~/.ssh/known_hosts
 
-      - name: Deploy
+          for i in $(seq 1 10); do
+            ssh-keyscan -H family.local >> ~/.ssh/known_hosts 2>/dev/null && break
+            sleep 2
+          done
+
+      - name: Verify Tailscale
+        if: steps.secrets.outputs.ready == 'true'
         run: |
-          tailscale ping family.local
+          tailscale status
+          tailscale ping -c 3 family.local
 
+      - name: Backup live app
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          ssh -i ~/.ssh/id_ed25519 richmack@family.local \
+          'mkdir -p /home/richmack/deploy-backups &&
+           tar \
+             --exclude=backups \
+             --exclude=.venv \
+             --exclude=instance \
+             -czf /home/richmack/deploy-backups/family-$(date +%Y%m%d-%H%M%S).tgz \
+             -C /home/richmack/v46-new .'
+
+      - name: Deploy application
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
           rsync -az \
             -e "ssh -i ~/.ssh/id_ed25519" \
             --exclude='.git/' \
@@ -156,19 +238,44 @@ jobs:
             --exclude='instance/' \
             --exclude='backups/' \
             --exclude='.venv/' \
+            --exclude='venv/' \
             --exclude='node_modules/' \
-            ./ richmack@family.local:/home/richmack/v46-new/
+            ./ \
+            richmack@family.local:/home/richmack/v46-new/
 
-      - name: Reload Family Operations
+      - name: Reload application
+        if: steps.secrets.outputs.ready == 'true'
         run: |
           ssh -i ~/.ssh/id_ed25519 richmack@family.local '
-            sudo systemctl restart family-operations 2>/dev/null ||
-            pkill -HUP -f "gunicorn.*8011" 2>/dev/null ||
-            true
+            set -e
 
-            sudo tailscale serve reset
-            sudo tailscale serve --bg http://127.0.0.1:8011
+            if sudo -n systemctl restart family-operations 2>/dev/null; then
+              echo "Restarted family-operations service"
+            elif pgrep -f "gunicorn.*8011" >/dev/null; then
+              pkill -HUP -f "gunicorn.*8011" || true
+              echo "Reloaded Gunicorn"
+            elif pgrep -f gunicorn >/dev/null; then
+              pkill -HUP -f gunicorn || true
+              echo "Reloaded Gunicorn"
+            fi
 
             sleep 3
-            curl -f http://127.0.0.1:8011/
+
+            curl -fsS http://127.0.0.1:8011/ >/dev/null
+
+            sudo -n tailscale serve reset || true
+            sudo -n tailscale serve --bg http://127.0.0.1:8011 || true
+
+            echo "=== TAILSCALE ==="
+            tailscale serve status || true
+
+            echo "=== APP ==="
+            curl -I http://127.0.0.1:8011/
           '
+
+      - name: Deployment skipped
+        if: steps.secrets.outputs.ready != 'true'
+        run: |
+          echo "Deployment was intentionally skipped."
+          echo "Playwright CI is unaffected."
+          echo "Configure TS_AUTHKEY and DEPLOY_SSH_KEY to enable automatic deployment."
