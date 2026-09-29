@@ -1,0 +1,28 @@
+{
+  "name": "family-operations-dashboard",
+  "version": "1.0.0",
+  "description": "[![CI](https://github.com/iamrichmack111/family-operations-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/iamrichmack111/family-operations-dashboard/actions/workflows/ci.yml) [![CodeQL](https://github.com/iamrichmack111/family-operations-dashboard/actions/workflows/codeql.yml/badge.svg)](https://github.com/iamrichmack111/family-operations-dashboard/actions/workflows/codeql.yml)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamrichmack111/family-operations-dashboard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/iamrichmack111/family-operations-dashboard/issues"
+  },
+  "homepage": "https://github.com/iamrichmack111/family-operations-dashboard#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}

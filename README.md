@@ -175,3 +175,12 @@ This ZIP includes its own Git metadata and opens on a dedicated feature branch.
 After extracting it, run `git branch --show-current` to verify the branch, then
 run `./submit_pr.sh` to fetch `main`, commit the packaged changes, push the
 branch, and open the pull request. See `BRANCH_AND_PR.md` for the manual commands.
+
+## CI/CD
+
+[![CI/CD Family Operations](https://github.com/iamrichmack111/family-operations-dashboard/actions/workflows/deploy-family.yml/badge.svg)](https://github.com/iamrichmack111/family-operations-dashboard/actions/workflows/deploy-family.yml)
+
+![Python](https://img.shields.io/badge/Python-Flask-blue)
+![Playwright](https://img.shields.io/badge/Tested-Playwright-success)
+![Tailscale](https://img.shields.io/badge/Deploy-Tailscale-blue)
+![Self Hosted](https://img.shields.io/badge/Deployment-Self--Hosted-informational)

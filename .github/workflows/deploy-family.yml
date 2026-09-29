@@ -1,0 +1,92 @@
+name: CI/CD Family Operations
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-deploy-screenshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Playwright
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Join Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          version: latest
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H family.local >> ~/.ssh/known_hosts
+
+      - name: Deploy through Tailscale
+        run: |
+          tailscale ping family.local
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/id_ed25519" \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.env' \
+            --exclude='*.db' \
+            --exclude='*.sqlite*' \
+            --exclude='instance/' \
+            --exclude='backups/' \
+            --exclude='.venv/' \
+            --exclude='venv/' \
+            --exclude='node_modules/' \
+            --exclude='docs/screenshots/' \
+            ./ richmack@family.local:/home/richmack/v46-new/
+
+      - name: Reload app
+        run: |
+          ssh -i ~/.ssh/id_ed25519 richmack@family.local '
+            sudo systemctl restart family-operations 2>/dev/null ||
+            pkill -HUP -f "gunicorn.*8011" 2>/dev/null ||
+            pkill -HUP -f gunicorn 2>/dev/null ||
+            true
+
+            sudo tailscale serve reset
+            sudo tailscale serve --bg http://127.0.0.1:8011
+
+            sleep 3
+            curl -f http://127.0.0.1:8011/
+            tailscale serve status
+          '
+
+      - name: Screenshot deployed app
+        env:
+          BASE_URL: http://family.local:8011
+        run: |
+          mkdir -p docs/screenshots
+          npx playwright test
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: family-operations-playwright-screenshots
+          path: docs/screenshots/
+          if-no-files-found: warn
