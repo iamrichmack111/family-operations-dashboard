@@ -67,9 +67,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .main import bp as main_bp
     from .parent import bp as parent_bp
     from .hq import bp as hq_bp
-    from .point_requests import bp as point_requests_bp
+    app.register_blueprint(auth_bp); app.register_blueprint(main_bp); app.register_blueprint(parent_bp); app.register_blueprint(hq_bp)
     from .sentence_upload import bp as sentence_upload_bp
-    app.register_blueprint(auth_bp); app.register_blueprint(main_bp); app.register_blueprint(parent_bp); app.register_blueprint(hq_bp); app.register_blueprint(point_requests_bp)
     app.register_blueprint(sentence_upload_bp)
     with app.app_context():
         # Preserve a pre-migration copy of an existing SQLite database. A fresh

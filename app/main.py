@@ -241,18 +241,19 @@ def dashboard():
 def complete_task(kind,item_id):
     model=task_model(kind); item=db.session.get(model,item_id) if model else None
     if not item or item.status not in {"assigned", "needs_redo"} or (current_user.role=="child" and item.assigned_to!=current_user.id):
-        flash("🚫 You cannot complete that item.","danger")
-        return redirect(url_for("main.dashboard"))
-
-    if kind == "homework":
-        flash("Upload the completed homework from Upload Sentences.", "warning")
-        return redirect(url_for("sentence_upload.upload_sentences") + f"#homework-{item.id}")
-
+        flash("🚫 You cannot complete that item.","danger"); return redirect(url_for("main.dashboard"))
     if kind == "chore" and item.task_date > date.today():
         flash("🧭 This is a preview. The chore can be completed on its assignment date.", "warning")
         return redirect(request.referrer or url_for("main.dashboard"))
 
-    old_proof_name = getattr(item, "proof_photo_name", "") if kind == "chore" else ""
+    # Homework files are submitted through Upload Sentences so they enter the
+    # approval queue with an attachment. Do not silently mark homework complete
+    # without the uploaded schoolwork.
+    if kind == "homework":
+        flash("📚 Upload the completed homework from Upload Sentences.", "warning")
+        return redirect(url_for("sentence_upload.upload_sentences") + f"#homework-{item.id}")
+
+    old_proof_name = item.proof_photo_name if kind == "chore" else ""
     new_proof_name = ""
     if kind == "chore":
         upload = request.files.get("proof_photo")
@@ -268,26 +269,22 @@ def complete_task(kind,item_id):
     item.status="completed"
     item.completed_by=current_user.id
     if kind == "chore":
-        if hasattr(item, "note"):
-            item.note=""
+        # Keep the column for compatibility, but chores no longer require a
+        # typed sentence.
+        item.note=""
         if new_proof_name:
-            item.proof_photo_name=new_proof_name
-
+            item.proof_photo_name = new_proof_name
     try:
         db.session.commit()
     except Exception:
         if new_proof_name:
             delete_chore_proof(new_proof_name)
         raise
-
     if new_proof_name and old_proof_name and old_proof_name != new_proof_name:
         delete_chore_proof(old_proof_name)
-
     notify_roles({"parent","manager"},"✅",f"{item.assignee.name} completed {kind}",item.title,url_for("main.approvals"))
     log_activity(current_user.id,"marked complete",kind,item.id,item.title)
-
-    if wants_htmx():
-        return render_template("partials/task_card.html",item=item,kind=kind)
+    if wants_htmx(): return render_template("partials/task_card.html",item=item,kind=kind)
     flash("✅ Marked complete and sent for approval.","success")
     return redirect(request.referrer or url_for("main.dashboard"))
 
@@ -547,112 +544,3 @@ def create_export():
     with zipfile.ZipFile(zip_path,"w",zipfile.ZIP_DEFLATED) as archive:
         for file in folder.iterdir(): archive.write(file,file.name)
     shutil.rmtree(folder); log_activity(current_user.id,"created export","export",details=zip_path.name); return send_file(zip_path,as_attachment=True)
-
-
-# V69_UPLOAD_SENTENCES_ROUTE_START
-@bp.route("/upload-sentences", methods=("GET", "POST"))
-@login_required
-def upload_sentences_v69():
-    from datetime import datetime, timezone
-    import json
-    from pathlib import Path
-    from uuid import uuid4
-
-    from flask import current_app
-    from werkzeug.utils import secure_filename
-
-    root = Path(current_app.instance_path) / "homework_uploads"
-    root.mkdir(parents=True, exist_ok=True)
-    meta_path = root / "uploads.jsonl"
-
-    allowed = {
-        ".pdf", ".jpg", ".jpeg", ".png", ".webp",
-        ".heic", ".heif", ".doc", ".docx", ".txt"
-    }
-
-    if request.method == "POST":
-        upload = request.files.get("homework_file")
-        title = (request.form.get("title") or "").strip()
-        subject = (request.form.get("subject") or "").strip()
-        note = (request.form.get("note") or "").strip()
-
-        if upload is None or not upload.filename:
-            flash("Choose the homework file or picture first.", "danger")
-            return redirect(url_for("main.upload_sentences_v69"))
-
-        original = secure_filename(upload.filename) or "homework"
-        ext = Path(original).suffix.lower()
-        if ext not in allowed:
-            flash("Upload a PDF, image, Word document, or TXT file.", "danger")
-            return redirect(url_for("main.upload_sentences_v69"))
-
-        data = upload.read(20 * 1024 * 1024 + 1)
-        if not data or len(data) > 20 * 1024 * 1024:
-            flash("Homework uploads must be 20 MB or smaller.", "danger")
-            return redirect(url_for("main.upload_sentences_v69"))
-
-        stored = f"{uuid4().hex}{ext}"
-        (root / stored).write_bytes(data)
-
-        record = {
-            "stored": stored,
-            "original": original,
-            "title": title or original,
-            "subject": subject,
-            "note": note,
-            "user_id": getattr(current_user, "id", None),
-            "user_name": getattr(current_user, "name", "Family member"),
-            "uploaded_at": datetime.now(timezone.utc).isoformat(),
-        }
-        with meta_path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-
-        try:
-            from .services import notify_roles, log_activity
-            notify_roles(
-                {"parent", "manager"},
-                "📚",
-                f"{record['user_name']} uploaded homework",
-                record["title"],
-                url_for("main.upload_sentences_v69"),
-            )
-            log_activity(
-                getattr(current_user, "id", None),
-                "uploaded homework",
-                "homework_upload",
-                0,
-                record["title"],
-            )
-        except Exception:
-            pass
-
-        flash("📚 Homework uploaded.", "success")
-        return redirect(url_for("main.upload_sentences_v69"))
-
-    rows = []
-    if meta_path.exists():
-        for line in meta_path.read_text(encoding="utf-8").splitlines():
-            try:
-                row = json.loads(line)
-            except Exception:
-                continue
-            rows.append(row)
-        rows = list(reversed(rows[-100:]))
-
-    return render_template("upload_sentences.html", uploads=rows)
-
-
-@bp.get("/homework-upload-file/<stored>")
-@login_required
-def homework_upload_file_v69(stored):
-    from pathlib import Path
-    from flask import current_app, send_from_directory
-
-    safe = Path(stored).name
-    root = Path(current_app.instance_path) / "homework_uploads"
-    target = root / safe
-    if not target.exists():
-        abort(404)
-    return send_from_directory(str(root), safe, as_attachment=False)
-# V69_UPLOAD_SENTENCES_ROUTE_END
-

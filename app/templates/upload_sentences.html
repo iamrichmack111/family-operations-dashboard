@@ -1,69 +1,52 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% block title %}Upload Sentences · Family Operations{% endblock %}
 {% block content %}
-<div class="page-title">
-  <h1>📚 Upload Sentences</h1>
-  <p class="mb-0">Upload completed homework, worksheets, sentence work, photos, PDFs, or documents.</p>
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <p class="eyebrow mb-1">Homework</p>
+    <h1 class="h3 mb-1">Upload Sentences</h1>
+    <p class="text-secondary mb-0">Take a picture of completed sentence/homework pages or choose a saved homework file. The upload goes directly to Approvals.</p>
+  </div>
+  <a class="btn btn-outline-light" href="{{ url_for('main.dashboard') }}">← Dashboard</a>
 </div>
 
-<div class="glass-panel p-3 p-md-4 mb-4">
-  <form method="post" enctype="multipart/form-data" action="{{ url_for('main.upload_sentences_v69') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-    <div class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label"><strong>Assignment / Homework</strong></label>
-        <input class="form-control dark-field" name="title" maxlength="160"
-               placeholder="Example: English sentence worksheet">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label"><strong>Subject</strong></label>
-        <input class="form-control dark-field" name="subject" maxlength="100"
-               placeholder="English, Math, Science…">
-      </div>
-      <div class="col-12">
-        <label class="form-label"><strong>Homework file</strong></label>
-        <input class="form-control dark-field" type="file" name="homework_file"
-               accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,.txt,image/*,application/pdf"
-               required>
-        <div class="small text-secondary mt-1">Photos, PDFs, Word files, or TXT · up to 20 MB</div>
-      </div>
-      <div class="col-12">
-        <label class="form-label"><strong>Note</strong> <span class="text-secondary">(optional)</span></label>
-        <textarea class="form-control dark-field" name="note" rows="3"
-                  placeholder="Anything the parent/manager should know"></textarea>
-      </div>
-    </div>
-
-    <button class="btn btn-gradient mt-3" type="submit">📤 Upload Homework</button>
-  </form>
-</div>
-
-<div class="glass-panel p-3 p-md-4">
-  <h2 class="h5 mb-3">Recent homework uploads</h2>
-
-  {% if uploads %}
-    <div class="d-grid gap-2">
-      {% for row in uploads %}
-      <div class="p-3 rounded border">
-        <div class="d-flex flex-wrap justify-content-between gap-2">
-          <div>
-            <strong>{{ row.title }}</strong>
-            {% if row.subject %}<div class="small text-secondary">{{ row.subject }}</div>{% endif %}
-            <div class="small text-secondary">{{ row.user_name }} · {{ row.uploaded_at }}</div>
-            {% if row.note %}<div class="mt-2">{{ row.note }}</div>{% endif %}
-          </div>
-          <div>
-            <a class="btn btn-sm btn-outline-light"
-               href="{{ url_for('main.homework_upload_file_v69', stored=row.stored) }}"
-               target="_blank" rel="noopener">Open file ↗</a>
-          </div>
+{% if homework %}
+<div class="d-grid gap-3">
+  {% for item in homework %}
+  <article id="homework-{{ item.id }}" class="task-card p-3 p-md-4 status-{{ item.status }}">
+    <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+      <div>
+        {% if item.subject is defined and item.subject %}<div class="homework-subject">{{ item.subject }}</div>{% endif %}
+        <h2 class="h5 mb-1">{{ item.title }}</h2>
+        <div class="small text-secondary">
+          👤 {{ item.assignee.name }} · ⭐ {{ item.points }} points
+          {% if item.due_date is defined and item.due_date %} · 📅 {{ item.due_date }}{% endif %}
         </div>
       </div>
-      {% endfor %}
+      <span class="badge status-badge">{{ item.status|replace('_',' ')|title }}</span>
     </div>
-  {% else %}
-    <p class="text-secondary mb-0">No homework has been uploaded yet.</p>
-  {% endif %}
+
+    <form class="mt-3" method="post" enctype="multipart/form-data" action="{{ url_for('sentence_upload.submit_homework', item_id=item.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="form-label"><strong>📤 Upload completed homework</strong></label>
+      <input
+        class="form-control dark-field mb-2"
+        type="file"
+        name="homework_file"
+        accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,.txt,image/*,application/pdf"
+        capture="environment"
+        required>
+      <div class="small text-secondary mb-3">Photo, PDF, Word document, or text file · maximum 20 MB</div>
+      <button class="btn btn-gradient w-100" type="submit">📚 Upload Homework → Approvals</button>
+    </form>
+  </article>
+  {% endfor %}
 </div>
+{% else %}
+<div class="glass-panel p-4 text-center">
+  <div class="display-6 mb-2">📚</div>
+  <h2 class="h5">No homework waiting for an upload</h2>
+  <p class="text-secondary mb-0">Assigned homework and anything returned for redo will appear here.</p>
+</div>
+{% endif %}
 {% endblock %}

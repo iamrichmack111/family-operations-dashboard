@@ -1,20 +1,43 @@
 {% set proof_ready = has_proof if has_proof is defined else (kind != 'chore') %}
-<article id="approval-{{ kind }}-{{ item.id }}" class="task-card approval-card status-{{ item.status }}">
+<article id="approval-{{ kind }}-{{ item.id }}" class="task-card approval-card status-{{ item.status }}" data-approval-kind="{{ kind }}">
   <div class="d-flex justify-content-between gap-3">
-    <div><h3 class="h6 mb-1">{{ item.title }}</h3><p class="small text-secondary mb-0">👤 {{ item.assignee.name }} · ⭐ {{ item.points }}</p>{% if kind == 'chore' and item.note %}<div class="mt-3 p-3 rounded border"><strong>📝 Completion sentence</strong><div class="mt-1">{{ item.note }}</div></div>{% endif %}</div>
+    <div>
+      {% if kind == 'homework' and item.subject is defined and item.subject %}<div class="homework-subject">{{ item.subject }}</div>{% endif %}
+      <h3 class="h6 mb-1">{{ item.title }}</h3>
+      <p class="small text-secondary mb-0">👤 {{ item.assignee.name }} · ⭐ {{ item.points }}{% if kind == 'homework' and item.due_date is defined and item.due_date %} · 📅 {{ item.due_date }}{% endif %}</p>
+    </div>
     <span class="badge status-badge">{{ item.status|replace('_',' ')|title }}</span>
   </div>
+
   {% if kind == 'chore' %}
-    {% if proof_ready %}<figure class="proof-preview mt-3"><img src="{{ url_for('main.chore_proof', item_id=item.id) }}" alt="Completion picture for {{ item.title }} by {{ item.assignee.name }}" loading="lazy"><figcaption><span>📷 Completion picture attached</span><a href="{{ url_for('main.chore_proof', item_id=item.id) }}" target="_blank" rel="noopener">Open full size ↗</a></figcaption></figure>
-    {% else %}<div class="proof-missing mt-3"><strong>📷 No picture attached</strong><span>Review the completion sentence and work normally.</span></div>{% endif %}
+    {% if proof_ready %}
+      <figure class="proof-preview mt-3">
+        <img src="{{ url_for('main.chore_proof', item_id=item.id) }}" alt="Completion picture for {{ item.title }} by {{ item.assignee.name }}" loading="lazy">
+        <figcaption><span>📷 Completion picture attached</span><a href="{{ url_for('main.chore_proof', item_id=item.id) }}" target="_blank" rel="noopener">Open full size ↗</a></figcaption>
+      </figure>
+    {% else %}
+      <div class="proof-missing mt-3"><strong>📷 No picture attached</strong><span>Completion pictures are optional.</span></div>
+    {% endif %}
+  {% else %}
+    <div class="homework-review-files mt-3">
+      {% if item.submission_name %}
+        <a class="homework-file-chip homework-file-submitted" href="{{ url_for('sentence_upload.homework_submission', item_id=item.id) }}" target="_blank" rel="noopener">
+          <span>📎</span><span><strong>Student homework upload</strong><small>{{ item.submission_original_name or 'Open submitted homework' }}</small></span>
+        </a>
+      {% else %}
+        <div class="proof-missing"><strong>📎 No homework file attached</strong><span>Use Upload Sentences to submit the homework before approval.</span></div>
+      {% endif %}
+    </div>
   {% endif %}
+
   {% if approval_error is defined and approval_error %}<div class="inline-error mt-3" role="alert">{{ approval_error }}</div>{% endif %}
+
   {% if item.status == 'completed' %}
     <div class="mt-3">
       <input form="review-{{ kind }}-{{ item.id }}" name="note" class="form-control form-control-sm dark-field mb-2" placeholder="Approval, redo, or excuse note">
       <form id="review-{{ kind }}-{{ item.id }}" method="post" action="{{ url_for('main.review_task', kind=kind, item_id=item.id) }}" hx-post="{{ url_for('main.review_task', kind=kind, item_id=item.id) }}" hx-target="#approval-{{ kind }}-{{ item.id }}" hx-swap="outerHTML" class="d-flex flex-wrap gap-2">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button name="status" value="approved" class="btn btn-sm btn-success">✅ Approve</button>
+        <button name="status" value="approved" class="btn btn-sm btn-success">✅ Approve +{{ item.points }} pts</button>
         <button name="status" value="needs_redo" class="btn btn-sm btn-outline-warning">🔁 Needs redo</button>
         <button name="status" value="excused" class="btn btn-sm btn-outline-secondary">🕊️ Excuse</button>
       </form>

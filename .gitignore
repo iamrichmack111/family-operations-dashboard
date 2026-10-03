@@ -49,3 +49,6 @@ Thumbs.db
 
 # Docker overrides
 docker-compose.override.yml
+instance/family_dashboard.db
+instance/*.db-wal
+instance/*.db-shm
