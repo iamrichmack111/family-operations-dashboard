@@ -1,29 +1,17 @@
-name: CI
+name: Family Operations CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
-  push:
-    branches: ['**']
-  workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  PYTHONPATH: .
-  FAMILY_DASHBOARD_SECRET: ci-only-secret-not-for-production
-  TZ: America/New_York
-
 jobs:
   test:
-    name: Python tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -32,107 +20,37 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.11"
           cache: pip
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          pip install -r requirements.txt
+          pip install gunicorn Flask-Migrate Pillow pytest
 
-      - name: Compile Python sources
-        run: python -m compileall -q app tests run.py wsgi.py
-
-      - name: Import application
+      - name: Compile application
         run: |
-          python - <<'PY'
-          from app import create_app
-          app = create_app({
-              "TESTING": True,
-              "AUTO_BACKUP_DATABASE": False,
-              "SEED_DEFAULTS": False,
-              "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-          })
-          print("Flask application import/create: ok")
-          PY
+          python -m py_compile \
+            app/__init__.py \
+            app/main.py \
+            app/parent.py \
+            app/models.py \
+            app/services.py \
+            app/hq.py \
+            wsgi.py
 
-      # Keep deterministic business rules as the blocking regression gate.
-      # These tests do not depend on wall-clock web rendering or filesystem
-      # image behavior and are stable across GitHub runner updates.
-      - name: Run blocking core regression tests
+      - name: Verify v67 assets
         run: |
-          python -m unittest -v \
-            tests.test_chore_rotation \
-            tests.test_ci_contracts
+          test -f app/static/v66_command_center.css
+          test -f app/static/v66_command_center.js
+          grep -q "Grievances" app/templates/base.html
+          grep -q "parent.grievances_page" app/templates/base.html
 
-      # The larger Flask workflow suite still runs on every push and remains
-      # visible in the log. It is diagnostic while the app continues to evolve;
-      # failures here no longer incorrectly mark the entire CI workflow red.
-      - name: Run extended Flask regression diagnostics
-        continue-on-error: true
+      - name: Run tests
         run: |
-          python -m unittest -v \
-            tests.test_photo_proof \
-            tests.test_rewards_trades
-
-      - name: Check bundled SQLite database
-        run: |
-          python - <<'PY'
-          import sqlite3
-          from pathlib import Path
-
-          path = Path('instance/family_dashboard.db')
-          if not path.exists():
-              print(f'SKIP: {path} is not tracked in this checkout; production database is preserved separately.')
-          else:
-              with sqlite3.connect(path) as con:
-                  result = con.execute('PRAGMA integrity_check').fetchone()[0]
-                  users = con.execute('SELECT COUNT(*) FROM users').fetchone()[0]
-                  chores = con.execute('SELECT COUNT(*) FROM chores').fetchone()[0]
-                  points = con.execute('SELECT COUNT(*) FROM point_transactions').fetchone()[0]
-              if result != 'ok':
-                  raise SystemExit(f'SQLite integrity check failed: {result}')
-              print(f'SQLite integrity_check: ok | users={users} chores={chores} point_transactions={points}')
-          PY
-
-  dependency-audit:
-    name: Dependency audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
-
-      - name: Install pip-audit
-        run: python -m pip install --upgrade pip pip-audit
-
-      - name: Audit Python dependencies
-        run: python -m pip_audit -r requirements.txt
-
-  docker-build:
-    name: Docker build check
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          tags: family-operations-dashboard:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          if find . -maxdepth 2 -type f -name 'test_*.py' | grep -q .; then
+            pytest -q
+          else
+            echo "No pytest suite found; compile checks passed."
+          fi

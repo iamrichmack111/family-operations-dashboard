@@ -10,6 +10,98 @@
   <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   {% block head %}{% endblock %}
+
+<!-- RICHMACK_V62_THEMES_CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='v56.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='themes_v64.css') }}">
+
+<!-- V69_HARD_NAV_STYLE_START -->
+<style id="v69-hard-nav-style">
+  body.v69-nav-ready { padding-top: 58px !important; }
+
+  #v69-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 58px;
+    z-index: 2147483000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    background: rgba(12, 18, 31, .97);
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    box-shadow: 0 8px 24px rgba(0,0,0,.28);
+    backdrop-filter: blur(14px);
+  }
+
+  #v69-menu-button {
+    appearance: none;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 12px;
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    min-width: 112px;
+    height: 42px;
+    padding: 0 15px;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  #v69-menu-button:hover { background: rgba(255,255,255,.13); }
+
+  #v69-topbar-title {
+    color: #fff;
+    font-weight: 800;
+    letter-spacing: .01em;
+  }
+
+  #v69-topbar-sub {
+    color: rgba(255,255,255,.62);
+    font-size: 12px;
+  }
+
+  #v69-menu-overlay {
+    display: none;
+    position: fixed;
+    inset: 58px 0 0 0;
+    z-index: 2147482997;
+    background: rgba(0,0,0,.48);
+  }
+
+  #v69-menu-overlay.v69-open { display: block; }
+
+  .v69-sidebar-drawer {
+    position: fixed !important;
+    z-index: 2147482999 !important;
+    top: 58px !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 290px !important;
+    min-width: 290px !important;
+    max-width: min(88vw, 340px) !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    transform: translateX(-110%) !important;
+    transition: transform .18s ease !important;
+    box-shadow: 18px 0 50px rgba(0,0,0,.38) !important;
+  }
+
+  .v69-sidebar-drawer.v69-open {
+    transform: translateX(0) !important;
+  }
+
+  .v69-upload-tab > a,
+  a.v69-upload-tab,
+  .v69-upload-tab a {
+    font-weight: 800 !important;
+  }
+</style>
+<!-- V69_HARD_NAV_STYLE_END -->
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='v66_command_center.css') }}">
 </head>
 <body class="app-shell {% if not current_user.is_authenticated %}login-page{% endif %}">
   {% if current_user.is_authenticated %}
@@ -32,15 +124,26 @@
             <li><a class="nav-link" href="{{ url_for('main.reports') }}">Reports</a></li>
           {% endif %}
           <li><a class="nav-link" href="{{ url_for('main.messages') }}">Messages</a></li>
-          <li><a class="nav-link" href="{{ url_for('main.grievances') }}">Grievances</a></li>
+          {% if current_user.is_parent %}
+            <li><a class="nav-link" href="{{ url_for('parent.grievances_page') }}">Grievances</a></li>
+          {% else %}
+            <li><a class="nav-link" href="{{ url_for('main.grievances') }}">Grievances</a></li>
+          {% endif %}
           <li><a class="nav-link" href="{{ url_for('main.violations') }}">Violations</a></li>
           <li><a class="nav-link" href="{{ url_for('main.activity') }}">Family News</a></li>
           <li><a class="nav-link" href="{{ url_for('main.points_ledger') }}">Points</a></li>
+          {% if current_user.can_approve %}<li><a class="nav-link" href="{{ url_for('point_requests.review_requests') }}">Point Requests</a></li>{% endif %}
           <li>
             <a class="nav-link position-relative" href="{{ url_for('main.notifications') }}">
               Alerts{% if nav_unread %}<span class="notification-dot">{{ nav_unread }}</span>{% endif %}
             </a>
           </li>
+          <li>
+            <a class="nav-link position-relative" href="{{ url_for('sentence_upload.upload_sentences') }}">
+              Upload Sentences{% if nav_unread %}<span class="notification-dot">{{ nav_unread }}</span>{% endif %}
+            </a>
+          </li>
+          
           {% if current_user.is_parent %}
             <li><a class="nav-link" href="{{ url_for('parent.center') }}">Parent Center</a></li>
             <li><a class="nav-link" href="{{ url_for('main.exports') }}">Exports</a></li>
@@ -73,5 +176,161 @@
   </main>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   {% block scripts %}{% endblock %}
+
+<!-- RICHMACK_V62_THEMES_JS -->
+<script defer src="{{ url_for('static', filename='v56.js') }}"></script>
+<script defer src="{{ url_for('static', filename='themes_v64.js') }}"></script>
+
+<!-- V69_HARD_NAV_SCRIPT_START -->
+<script id="v69-hard-nav-script">
+(function () {
+  "use strict";
+
+  function clean(s) {
+    return (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function replaceText(root, fromText, toText) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function (node) {
+      if (node.nodeValue && node.nodeValue.match(new RegExp(fromText, "i"))) {
+        node.nodeValue = node.nodeValue.replace(new RegExp(fromText, "ig"), toText);
+      }
+    });
+  }
+
+  function findSidebar(alertsLink) {
+    if (!alertsLink) return null;
+
+    const direct = alertsLink.closest(
+      "aside, nav, .sidebar, .side-nav, .sidenav, .offcanvas, [class*='sidebar'], [id*='sidebar']"
+    );
+    if (direct) return direct;
+
+    let p = alertsLink.parentElement;
+    while (p && p !== document.body) {
+      const links = Array.from(p.querySelectorAll("a"));
+      const hasDashboard = links.some(a => clean(a.textContent) === "dashboard");
+      const hasApprovals = links.some(a => clean(a.textContent) === "approvals");
+      if (links.length >= 6 && hasDashboard && hasApprovals) return p;
+      p = p.parentElement;
+    }
+    return null;
+  }
+
+  function addUploadTab(alertsLink) {
+    if (!alertsLink) return;
+
+    const all = Array.from(document.querySelectorAll("a"));
+    const already = all.find(a =>
+      clean(a.textContent) === "upload sentences" ||
+      (a.getAttribute("href") || "") === "/upload-sentences"
+    );
+    if (already) {
+      already.setAttribute("href", "/upload-sentences");
+      return;
+    }
+
+    const row = alertsLink.closest("li") || alertsLink;
+    const clone = row.cloneNode(true);
+    const link = clone.matches("a") ? clone : clone.querySelector("a");
+    if (!link) return;
+
+    link.setAttribute("href", "/upload-sentences");
+    link.removeAttribute("hx-get");
+    link.removeAttribute("hx-post");
+    link.removeAttribute("data-bs-toggle");
+    link.removeAttribute("aria-expanded");
+
+    replaceText(clone, "Alerts", "Upload Sentences");
+
+    clone.querySelectorAll(
+      ".badge, .count, .counter, .notification-count, [class*='badge'], [class*='count']"
+    ).forEach(function (x) {
+      if (clean(x.textContent).match(/^\d+$/)) x.remove();
+    });
+
+    clone.classList.remove("active", "is-active", "selected");
+    clone.classList.add("v69-upload-tab");
+    link.classList.remove("active", "is-active", "selected");
+    link.classList.add("v69-upload-tab");
+
+    row.insertAdjacentElement("afterend", clone);
+  }
+
+  function mount() {
+    const links = Array.from(document.querySelectorAll("a"));
+    const alerts = links.find(a => clean(a.textContent) === "alerts") ||
+                   links.find(a => clean(a.textContent).startsWith("alerts "));
+
+    if (!alerts) {
+      console.warn("Family Operations v69: Alerts link not found; nav repair skipped.");
+      return;
+    }
+
+    addUploadTab(alerts);
+
+    const sidebar = findSidebar(alerts);
+    if (!sidebar) {
+      console.warn("Family Operations v69: sidebar container not found.");
+      return;
+    }
+
+    document.body.classList.add("v69-nav-ready");
+    sidebar.classList.add("v69-sidebar-drawer");
+    sidebar.setAttribute("id", "v69-sidebar-drawer");
+
+    let bar = document.getElementById("v69-topbar");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "v69-topbar";
+      bar.innerHTML =
+        '<button id="v69-menu-button" type="button" aria-controls="v69-sidebar-drawer" aria-expanded="false">☰ Menu</button>' +
+        '<div><div id="v69-topbar-title">Family Operations</div><div id="v69-topbar-sub">family.local · port 8010</div></div>';
+      document.body.appendChild(bar);
+    }
+
+    let overlay = document.getElementById("v69-menu-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "v69-menu-overlay";
+      document.body.appendChild(overlay);
+    }
+
+    const button = document.getElementById("v69-menu-button");
+
+    function setOpen(open) {
+      sidebar.classList.toggle("v69-open", open);
+      overlay.classList.toggle("v69-open", open);
+      button.setAttribute("aria-expanded", open ? "true" : "false");
+      button.textContent = open ? "✕ Close" : "☰ Menu";
+    }
+
+    button.addEventListener("click", function () {
+      setOpen(!sidebar.classList.contains("v69-open"));
+    });
+
+    overlay.addEventListener("click", function () { setOpen(false); });
+
+    sidebar.addEventListener("click", function (e) {
+      const link = e.target.closest("a");
+      if (link && window.innerWidth < 1000) setOpen(false);
+    });
+
+    setOpen(false);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mount);
+  } else {
+    mount();
+  }
+})();
+</script>
+<!-- V69_HARD_NAV_SCRIPT_END -->
+
+  <script src="{{ url_for('static', filename='v66_command_center.js') }}" defer></script>
 </body>
 </html>

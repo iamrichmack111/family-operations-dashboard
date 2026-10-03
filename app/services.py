@@ -11,7 +11,7 @@ from .chore_rotation import PEOPLE, chore_assignments_for
 from .extensions import db
 from .models import Activity, Chore, Notification, PointTransaction, ScheduleLock, Setting, User, ViolationCategory
 
-DEFAULT_USERS = (("Samantha", "parent"), ("Jeremy", "parent"), ("Jasmin", "manager"), ("Zara", "child"), ("Aria", "child"))
+DEFAULT_USERS = (("Samantha", "parent"), ("Jeremy", "parent"), ("Jasmin", "manager"), ("Zara", "manager"), ("Aria", "child"))
 VIOLATION_CATEGORIES = (
     ("insubordination", "Insubordination", 15),
     ("poor_job_performance", "Poor job performance", 5),

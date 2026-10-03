@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Point Requests · Family Operations{% endblock %}
+{% block content %}
+<div class="page-title page-title-with-actions">
+  <div><p class="eyebrow mb-1">Approvals</p><h1>📨 Point requests</h1><p>Review point requests and transfer approved points into the ledger.</p></div>
+  <a class="btn btn-outline-light" href="{{ url_for('main.points_ledger') }}">← Points ledger</a>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-6"><div class="metric-card tint-blue"><span>Pending requests</span><strong>{{ pending_count }}</strong></div></div>
+  <div class="col-md-6"><div class="metric-card tint-purple"><span>Pending points</span><strong>{{ pending_total }}</strong></div></div>
+</div>
+<section class="glass-panel">
+  <div class="row g-2 mb-3">
+    <div class="col-md-8"><input id="requestSearch" class="form-control dark-field" placeholder="Search person or reason…"></div>
+    <div class="col-md-4"><select id="requestStatus" class="form-select dark-field"><option value="">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="denied">Denied</option></select></div>
+  </div>
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead><tr><th>Date</th><th>Person</th><th>Amount</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody id="requestRows">
+      {% for item in point_requests %}
+        <tr data-search="{{ item.user.name|lower }} {{ item.reason|lower }}" data-status="{{ item.status }}">
+          <td>{{ item.created_at|eastern }}</td><td>{{ item.user.emoji }} {{ item.user.name }}</td><td><strong>{{ item.amount }}</strong></td><td>{{ item.reason }}</td><td><span class="badge status-badge">{{ item.status|title }}</span></td>
+          <td>
+            {% if item.status == 'pending' %}
+              {% if current_user.role == 'manager' and item.user_id == current_user.id %}
+                <span class="text-secondary small">Own request</span>
+              {% else %}
+                <div class="d-flex gap-2">
+                  <form method="post" action="{{ url_for('point_requests.approve_request', request_id=item.id) }}" onsubmit="return confirm('Approve and transfer {{ item.amount }} points?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-success">✅ Approve +{{ item.amount }}</button></form>
+                  <form method="post" action="{{ url_for('point_requests.deny_request', request_id=item.id) }}" onsubmit="return confirm('Deny this request?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger">✕ Deny</button></form>
+                </div>
+              {% endif %}
+            {% else %}<span class="text-secondary small">Resolved</span>{% endif %}
+          </td>
+        </tr>
+      {% else %}<tr><td colspan="6">No point requests.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<script>
+(() => {
+  const q=document.getElementById('requestSearch'), s=document.getElementById('requestStatus');
+  const rows=[...document.querySelectorAll('#requestRows tr[data-search]')];
+  function filter(){const text=(q.value||'').toLowerCase().trim(), status=s.value;rows.forEach(r=>r.hidden=!!((text&&!r.dataset.search.includes(text))||(status&&r.dataset.status!==status)));}
+  q.addEventListener('input',filter); s.addEventListener('change',filter);
+})();
+</script>
+{% endblock %}

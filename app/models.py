@@ -83,6 +83,8 @@ class Chore(TimestampMixin, db.Model):
 
 class Homework(TimestampMixin, db.Model):
     __tablename__ = "homework"
+    submission_name = db.Column(db.String(255), default="", nullable=False)
+    submission_original_name = db.Column(db.String(255), default="", nullable=False)
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(180), nullable=False)
     subject = db.Column(db.String(100), nullable=False)
@@ -190,6 +192,56 @@ class PointTransaction(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)
     user = db.relationship("User", foreign_keys=[user_id])
     creator = db.relationship("User", foreign_keys=[created_by])
+
+
+
+class PointRequest(TimestampMixin, db.Model):
+    __tablename__ = "point_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
+
+    amount = db.Column(
+        db.Integer,
+        nullable=False,
+    )
+
+    reason = db.Column(
+        db.String(255),
+        nullable=False,
+    )
+
+    status = db.Column(
+        db.String(30),
+        default="pending",
+        nullable=False,
+        index=True,
+    )
+
+    resolved_by = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+    )
+
+    resolved_at = db.Column(
+        db.DateTime(timezone=True),
+    )
+
+    user = db.relationship(
+        "User",
+        foreign_keys=[user_id],
+    )
+
+    resolver = db.relationship(
+        "User",
+        foreign_keys=[resolved_by],
+    )
 
 
 class Notification(db.Model):

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Request Points · Family Operations{% endblock %}
+{% block content %}
+<div class="page-title page-title-with-actions">
+  <div><p class="eyebrow mb-1">Points</p><h1>➕ Request points</h1><p>Send a point request to the parent/manager review queue.</p></div>
+  <a class="btn btn-outline-light" href="{{ url_for('main.points_ledger') }}">← Points ledger</a>
+</div>
+<section class="glass-panel mb-4">
+  <form method="post" class="row g-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-md-3"><label class="form-label">Amount</label><input class="form-control dark-field" type="number" name="amount" min="1" max="10000" required></div>
+    <div class="col-md-9"><label class="form-label">Reason</label><input class="form-control dark-field" name="reason" maxlength="255" placeholder="What are the points for?" required></div>
+    <div class="col-12"><button class="btn btn-gradient">📨 Submit request</button></div>
+  </form>
+</section>
+<section class="glass-panel">
+  <div class="panel-heading"><div><h2>My requests</h2><small class="text-secondary">Pending, approved, and denied requests stay visible.</small></div></div>
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead><tr><th>Date</th><th>Amount</th><th>Reason</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for item in rows %}
+        <tr><td>{{ item.created_at|eastern }}</td><td><strong>{{ item.amount }}</strong></td><td>{{ item.reason }}</td><td><span class="badge status-badge">{{ item.status|title }}</span></td></tr>
+      {% else %}<tr><td colspan="4">No requests yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

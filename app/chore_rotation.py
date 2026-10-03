@@ -37,6 +37,12 @@ def _people_for_day(day: date) -> tuple[str, ...]:
         swap = {PEOPLE[0]: PEOPLE[1], PEOPLE[1]: PEOPLE[0]}
         ordered = tuple(swap.get(person, person) for person in ordered)
 
+    # V63_2026_10_02_ZARA_COUNTERS
+    # Friday Oct 2: Zara gets role slot 1 (Counters/Stove + Basement/Laundry),
+    # and must NOT get role slot 2 (Table/Chairs/Floor + Bathrooms/Kitchen).
+    if day == date(2026, 10, 2):
+        ordered = (ordered[0], ordered[2], ordered[1])
+
     return ordered
 
 

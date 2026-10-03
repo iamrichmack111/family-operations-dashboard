@@ -1,1 +1,76 @@
-{% extends 'base.html' %}{% block content %}<div class="page-title"><h1>🔒 Private grievances</h1><p>Only Samantha and Jeremy can read the full grievance and respond.</p></div><div class="row g-4"><div class="col-lg-5"><section class="glass-panel"><h2 class="h4">📝 Submit privately</h2><form method="post" class="vstack gap-3">{{ form.hidden_tag() }}<div>{{ form.subject.label(class='form-label') }}{{ form.subject(class='form-control dark-field') }}</div><div>{{ form.description.label(class='form-label') }}{{ form.description(class='form-control dark-field',rows=9) }}</div>{{ form.submit(class='btn btn-gradient') }}</form></section></div><div class="col-lg-7"><section class="glass-panel"><div class="panel-heading"><h2>📨 My grievances</h2><span>{{ grievances|length }}</span></div>{% for g in grievances %}<article class="message-card"><div class="d-flex justify-content-between"><strong>{{ g.subject }}</strong><span class="badge status-badge">{{ g.status|replace('_',' ')|title }}</span></div><small>{{ g.created_at|eastern('%b %d, %Y') }}</small><p>{{ g.description }}</p>{% if g.parent_response %}<div class="response-box"><strong>👑 Parent response</strong><p>{{ g.parent_response }}</p></div>{% endif %}</article>{% else %}<p class="text-secondary">No grievances submitted.</p>{% endfor %}</section></div></div>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Grievances · Family Operations{% endblock %}
+{% block content %}
+<header class="v66-page-head">
+  <div>
+    <span class="v66-kicker">PRIVATE CHANNEL</span>
+    <h1>Grievances</h1>
+    <p>Submit a private household concern and track the parent response.</p>
+  </div>
+  <div class="v66-lock-card">
+    <span>🔒</span>
+    <div><strong>Private record</strong><small>Only you and parent accounts can read the full grievance.</small></div>
+  </div>
+</header>
+
+<div class="row g-4">
+  <div class="col-xl-5">
+    <section class="glass-panel v66-panel">
+      <div class="v66-panel-title">
+        <div><span class="v66-icon">✎</span><div><strong>Submit a grievance</strong><small>Give the concern a short subject and explain what happened.</small></div></div>
+      </div>
+      <form method="post" class="vstack gap-3">
+        {{ form.hidden_tag() }}
+        <div>
+          {{ form.subject.label(class='form-label') }}
+          {{ form.subject(class='form-control dark-field', placeholder='Short subject') }}
+        </div>
+        <div>
+          {{ form.description.label(class='form-label') }}
+          {{ form.description(class='form-control dark-field', rows=10, placeholder='Describe the concern clearly...') }}
+        </div>
+        {{ form.submit(class='btn btn-gradient v66-primary') }}
+      </form>
+    </section>
+  </div>
+
+  <div class="col-xl-7">
+    <section class="glass-panel v66-panel">
+      <div class="v66-panel-title">
+        <div><span class="v66-icon">☰</span><div><strong>My grievance history</strong><small>{{ grievances|length }} record{% if grievances|length != 1 %}s{% endif %}</small></div></div>
+      </div>
+
+      <div class="v66-record-stack">
+        {% for g in grievances %}
+          <article class="v66-record">
+            <div class="v66-record-top">
+              <div>
+                <span class="v66-record-id">#{{ g.id }}</span>
+                <h2>{{ g.subject }}</h2>
+              </div>
+              <span class="v66-status v66-status-{{ g.status }}">{{ g.status|replace('_',' ')|title }}</span>
+            </div>
+            <small class="v66-meta">{{ g.created_at|eastern('%b %d, %Y · %I:%M %p') }}</small>
+            <p>{{ g.description }}</p>
+
+            {% if g.parent_response %}
+              <div class="v66-response">
+                <span>↳</span>
+                <div><strong>Parent response</strong><p>{{ g.parent_response }}</p></div>
+              </div>
+            {% else %}
+              <div class="v66-awaiting">Awaiting parent response</div>
+            {% endif %}
+          </article>
+        {% else %}
+          <div class="v66-empty">
+            <span>◇</span>
+            <strong>No grievances yet</strong>
+            <p>Submitted grievances will appear here.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

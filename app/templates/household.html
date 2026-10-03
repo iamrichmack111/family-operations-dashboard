@@ -220,25 +220,36 @@
 </section>
 
 <section class="glass-panel lux-panel mt-4" id="trades">
-  <div class="panel-heading"><h2>Chore Trade Exchange</h2><span>Offer points for someone else to take an assignment</span></div>
+  <div class="panel-heading"><h2>Chore Trade Exchange</h2><span>Trade an assignment without losing any points</span></div>
 
   {% if current_user.role in ['manager','child'] %}
   <div class="trade-explainer mb-4">
     <div><span>01</span><strong>Choose an assignment</strong><small>Paired deep-clean chores move together.</small></div>
-    <div><span>02</span><strong>Offer points</strong><small>The points are held in escrow.</small></div>
-    <div><span>03</span><strong>Someone accepts</strong><small>The chore and points transfer instantly.</small></div>
+    <div><span>02</span><strong>Add an optional bonus tip</strong><small>The tip does not come out of your balance.</small></div>
+    <div><span>03</span><strong>Someone accepts</strong><small>The chore transfers instantly. Your balance stays unchanged.</small></div>
   </div>
   <form method="post" action="{{ url_for('hq.chore_trade_create') }}" class="trade-create-grid mb-4">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div><label>Assignment</label><select name="chore_id" class="form-select dark-field" required><option value="">Select a chore…</option>{% for option in chore_options %}<option value="{{ option.chore.id }}">{{ option.chore.task_date.strftime('%a %b %d') }} · {{ option.summary }}</option>{% endfor %}</select></div>
-    <div><label>Points offered</label><input name="offered_points" type="number" min="1" max="{{ balances.get(current_user.id,0) if balances.get(current_user.id,0) > 0 else 1 }}" class="form-control dark-field" required placeholder="25"></div>
+    <div>
+<label>Bonus tip <small>(free — not deducted)</small></label>
+<input
+ name="offered_points"
+ type="number"
+ min="0"
+ max="500"
+ value="0"
+ class="form-control dark-field"
+ placeholder="0"
+>
+</div>
     <div><label>Offer to</label><select name="requested_to" class="form-select dark-field"><option value="">Anyone can accept</option>{% for member in members if member.id != current_user.id %}<option value="{{ member.id }}">{{ member.name }}</option>{% endfor %}</select></div>
     <div><label>Note</label><input name="note" class="form-control dark-field" placeholder="Optional message"></div>
     <button class="btn btn-lux">Post trade</button>
   </form>
   {% if not chore_options %}<div class="small text-secondary mb-4">You currently have no available assignments to trade in the next 7 days.</div>{% endif %}
   {% else %}
-  <div class="parent-review-banner mb-4"><span>🔄</span><div><strong>Trade oversight</strong><p>Trades are voluntary. Offered points are escrowed, and paired deep-clean assignments stay together when transferred.</p></div></div>
+  <div class="parent-review-banner mb-4"><span>🔄</span><div><strong>Trade oversight</strong><p>Trades are voluntary. No points are deducted from the person posting the trade. Optional bonus tips are awarded only when someone accepts.</p></div></div>
   {% endif %}
 
   <div class="trade-grid">
@@ -246,7 +257,13 @@
     <article class="trade-card status-{{ trade.status }}">
       <div class="trade-card-head">
         <span class="reward-status status-{{ trade.status }}">{{ trade.status|title }}</span>
-        <span class="trade-price">{{ trade.offered_points }} pts</span>
+        <span class="trade-price">
+{% if trade.offered_points %}
+🎁 {{ trade.offered_points }} bonus pts
+{% else %}
+FREE TRADE
+{% endif %}
+</span>
       </div>
       <h3>{{ trade.chore_summary }}</h3>
       <p class="trade-date">{{ trade.chore_date.strftime('%A · %b %d') }}</p>
@@ -255,7 +272,13 @@
       {% if trade.status == 'pending' %}
       <div class="d-flex gap-2 flex-wrap mt-3">
         {% if current_user.role in ['manager','child'] and current_user.id != trade.offered_by and (not trade.requested_to or trade.requested_to == current_user.id) %}
-        <form method="post" action="{{ url_for('hq.chore_trade_accept',trade_id=trade.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-lux">Accept + earn {{ trade.offered_points }}</button></form>
+        <form method="post" action="{{ url_for('hq.chore_trade_accept',trade_id=trade.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-lux">
+{% if trade.offered_points %}
+Accept + earn {{ trade.offered_points }} bonus pts
+{% else %}
+Accept trade
+{% endif %}
+</button></form>
         {% endif %}
         {% if current_user.id == trade.offered_by or current_user.is_parent or (trade.requested_to and current_user.id == trade.requested_to) %}
         <form method="post" action="{{ url_for('hq.chore_trade_cancel',trade_id=trade.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-secondary">{% if trade.requested_to == current_user.id and current_user.id != trade.offered_by %}Decline{% else %}Cancel{% endif %}</button></form>

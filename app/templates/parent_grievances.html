@@ -1,1 +1,57 @@
-{% extends 'base.html' %}{% block content %}<div class="page-title"><h1>🔒 Parent grievance inbox</h1><p>Only Samantha and Jeremy can read and respond to these private records.</p></div><div class="vstack gap-3">{% for g in grievances %}<article class="glass-panel"><div class="d-flex justify-content-between"><h2 class="h5">#{{ g.id }} · {{ g.submitter.emoji }} {{ g.submitter.name }} · {{ g.subject }}</h2><span class="badge status-badge">{{ g.status|replace('_',' ')|title }}</span></div><p>{{ g.description }}</p><form method="post" action="{{ url_for('parent.respond_grievance',grievance_id=g.id) }}" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="col-md-3"><select class="form-select dark-field" name="status"><option value="under_review">Under review</option><option value="resolved">Resolved</option><option value="dismissed">Dismissed</option></select></div><div class="col-md-7"><textarea class="form-control dark-field" name="response" rows="2" required>{{ g.parent_response }}</textarea></div><div class="col-md-2"><button class="btn btn-gradient w-100">📨 Respond</button></div></form></article>{% else %}<div class="glass-panel">No grievances.</div>{% endfor %}</div>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Grievance Inbox · Family Operations{% endblock %}
+{% block content %}
+<header class="v66-page-head">
+  <div>
+    <span class="v66-kicker">PARENT INBOX</span>
+    <h1>Grievances</h1>
+    <p>Private household grievances, review status, and parent responses.</p>
+  </div>
+  <div class="v66-lock-card">
+    <span>🔐</span>
+    <div><strong>Parent-only inbox</strong><small>These records are intentionally excluded from the shared family feed.</small></div>
+  </div>
+</header>
+
+<div class="v66-record-stack">
+  {% for g in grievances %}
+    <article class="glass-panel v66-panel v66-grievance-admin">
+      <div class="v66-record-top">
+        <div>
+          <span class="v66-record-id">GRIEVANCE #{{ g.id }}</span>
+          <h2>{{ g.submitter.emoji }} {{ g.submitter.name }} · {{ g.subject }}</h2>
+          <small class="v66-meta">{{ g.created_at|eastern('%b %d, %Y · %I:%M %p') }}</small>
+        </div>
+        <span class="v66-status v66-status-{{ g.status }}">{{ g.status|replace('_',' ')|title }}</span>
+      </div>
+
+      <div class="v66-grievance-body">{{ g.description }}</div>
+
+      <form method="post" action="{{ url_for('parent.respond_grievance', grievance_id=g.id) }}" class="row g-3 align-items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="col-lg-3">
+          <label class="form-label">Status</label>
+          <select class="form-select dark-field" name="status">
+            <option value="under_review" {% if g.status == 'under_review' %}selected{% endif %}>Under review</option>
+            <option value="resolved" {% if g.status == 'resolved' %}selected{% endif %}>Resolved</option>
+            <option value="dismissed" {% if g.status == 'dismissed' %}selected{% endif %}>Dismissed</option>
+          </select>
+        </div>
+        <div class="col-lg-7">
+          <label class="form-label">Parent response</label>
+          <textarea class="form-control dark-field" name="response" rows="3" required placeholder="Write the response...">{{ g.parent_response }}</textarea>
+        </div>
+        <div class="col-lg-2">
+          <button class="btn btn-gradient v66-primary w-100">Send response</button>
+        </div>
+      </form>
+    </article>
+  {% else %}
+    <div class="glass-panel v66-panel v66-empty">
+      <span>✓</span>
+      <strong>No grievances waiting</strong>
+      <p>The private inbox is currently clear.</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

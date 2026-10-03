@@ -1,56 +1,29 @@
 <article id="{{ kind }}-{{ item.id }}" class="task-card status-{{ item.status }}">
   <div class="d-flex justify-content-between gap-3">
-    <div>
-      <h3 class="h6 mb-1">{{ item.title }}</h3>
-      <div class="small text-secondary">
-        👤 {{ item.assignee.name }} · ⭐ {{ item.points }} points
-        {% if kind == 'homework' %} · 📅 {{ item.due_date }}{% endif %}
-      </div>
-    </div>
+    <div><h3 class="h6 mb-1">{{ item.title }}</h3><div class="small text-secondary">👤 {{ item.assignee.name }} · ⭐ {{ item.points }} points{% if kind == 'homework' %} · 📅 {{ item.due_date }}{% endif %}</div></div>
     <span class="badge status-badge">{{ item.status|replace('_',' ')|title }}</span>
   </div>
-
   {% if item.note %}<p class="small mt-2 mb-0">📝 {{ item.note }}</p>{% endif %}
-
-  {% if kind == 'chore' and item.proof_photo_name and item.status in ['completed', 'approved'] %}
-    <a class="proof-chip mt-3" href="{{ url_for('main.chore_proof', item_id=item.id) }}" target="_blank" rel="noopener">
-      📷 Completion photo attached
-    </a>
-  {% endif %}
-
-  {% if proof_error is defined and proof_error %}
-    <div class="inline-error mt-3" role="alert">📷 {{ proof_error }}</div>
-  {% endif %}
-
-  {% if item.status in ['assigned','needs_redo'] and (current_user.role != 'child' or item.assigned_to == current_user.id) %}
-    <form
-      hx-post="{{ url_for('main.complete_task', kind=kind, item_id=item.id) }}"
-      hx-target="#{{ kind }}-{{ item.id }}"
-      hx-swap="outerHTML"
-      enctype="multipart/form-data"
-      class="completion-form mt-3"
-    >
+  {% if kind == 'chore' and item.proof_photo_name and item.status in ['completed', 'approved'] %}<a class="proof-chip mt-3" href="{{ url_for('main.chore_proof', item_id=item.id) }}" target="_blank" rel="noopener">📷 Completion picture attached</a>{% endif %}
+  {% if proof_error is defined and proof_error %}<div class="inline-error mt-3" role="alert">📷 {{ proof_error }}</div>{% endif %}
+  {# V68_TASK_COMPLETION #}
+{% if item.status in ['assigned','needs_redo'] and (current_user.role != 'child' or item.assigned_to == current_user.id) %}
+  {% if kind == 'homework' %}
+    <div class="mt-3">
+      <a class="btn btn-gradient w-100" href="{{ url_for('sentence_upload.upload_sentences') }}#homework-{{ item.id }}">Upload Homework</a>
+    </div>
+  {% else %}
+    <form hx-post="{{ url_for('main.complete_task', kind=kind, item_id=item.id) }}"
+          hx-target="#{{ kind }}-{{ item.id }}"
+          hx-swap="outerHTML"
+          enctype="multipart/form-data"
+          class="completion-form mt-3">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-      {% if kind == 'chore' %}
-        <label class="proof-upload mb-2">
-          <span class="proof-upload-icon">📸</span>
-          <span class="proof-upload-copy">
-            <strong>Add a completion photo</strong>
-            <small>Optional · JPEG, PNG, or WebP · max 8 MB</small>
-          </span>
-          <input
-            type="file"
-            name="proof_photo"
-            class="form-control form-control-sm dark-field"
-            accept="image/jpeg,image/png,image/webp"
-            capture="environment"
-          >
-        </label>
-      {% endif %}
-
-      <input name="note" class="form-control form-control-sm dark-field mb-2" placeholder="Optional completion note">
-      <button class="btn btn-sm btn-complete">✅ Mark complete</button>
+      <label class="form-label"><strong>Completion picture</strong> <span class="text-secondary">(optional)</span></label>
+      <input type="file" name="proof_photo" class="form-control dark-field mb-3"
+             accept="image/jpeg,image/png,image/webp,image/heic,image/heif">
+      <button class="btn btn-complete w-100">Mark Complete</button>
     </form>
   {% endif %}
+{% endif %}
 </article>

@@ -247,19 +247,22 @@ def _trade_chore_options(user_id: int) -> list[dict]:
 
 def _expire_trades() -> None:
     stale = db.session.scalars(
-        db.select(ChoreTrade).where(ChoreTrade.status == "pending", ChoreTrade.chore_date < date.today())
+        db.select(ChoreTrade).where(
+            ChoreTrade.status == "pending",
+            ChoreTrade.chore_date < date.today(),
+        )
     ).all()
+
+    changed = False
+
     for trade in stale:
         trade.status = "expired"
         trade.resolved_at = datetime.now(timezone.utc)
-        add_points(
-            trade.offered_by,
-            trade.offered_points,
-            f"Refund for expired chore trade: {trade.chore_summary}",
-            "chore_trade_refund",
-            trade.id,
-            None,
-        )
+        changed = True
+
+    if changed:
+        db.session.commit()
+
 
 
 @bp.get("/planner")
@@ -817,130 +820,483 @@ def purchase_resolve(purchase_id: int):
 @bp.post("/household/chore-trades/create")
 @login_required
 def chore_trade_create():
+
     if current_user.role not in {"manager", "child"}:
-        flash("Only household members with chore assignments can post trades.", "warning")
-        return redirect(url_for("hq.household") + "#trades")
-    chore_id = request.form.get("chore_id", type=int)
-    offered_points = request.form.get("offered_points", type=int) or 0
-    requested_to = request.form.get("requested_to", type=int)
-    chore = db.session.get(Chore, chore_id) if chore_id else None
-    if not chore or chore.assigned_to != current_user.id or chore.status != "assigned" or chore.task_date < date.today():
-        flash("That chore is no longer available to trade.", "danger")
-        return redirect(url_for("hq.household") + "#trades")
-    if offered_points <= 0:
-        flash("Offer at least 1 point for the trade.", "danger")
-        return redirect(url_for("hq.household") + "#trades")
-    if point_balance(current_user.id) < offered_points:
-        flash("You do not have enough points to place that offer in escrow.", "warning")
-        return redirect(url_for("hq.household") + "#trades")
+        flash(
+            "Only household members with chore assignments can post trades.",
+            "warning",
+        )
+        return redirect(
+            url_for("hq.household") + "#trades"
+        )
+
+    chore_id = request.form.get(
+        "chore_id",
+        type=int,
+    )
+
+    # FREE BONUS TIP.
+    # This is NOT deducted from the offerer's balance.
+    offered_points = max(
+        0,
+        min(
+            500,
+            request.form.get(
+                "offered_points",
+                type=int,
+            ) or 0,
+        ),
+    )
+
+    requested_to = request.form.get(
+        "requested_to",
+        type=int,
+    )
+
+    chore = (
+        db.session.get(
+            Chore,
+            chore_id,
+        )
+        if chore_id
+        else None
+    )
+
+    if (
+        not chore
+        or chore.assigned_to != current_user.id
+        or chore.status != "assigned"
+        or chore.task_date < date.today()
+    ):
+        flash(
+            "That chore is no longer available to trade.",
+            "danger",
+        )
+        return redirect(
+            url_for("hq.household") + "#trades"
+        )
 
     if requested_to:
-        requested = db.session.get(User, requested_to)
-        if not requested or not requested.active or requested.role not in {"manager", "child"} or requested.id == current_user.id:
-            flash("Choose another eligible household member or leave the trade open.", "danger")
-            return redirect(url_for("hq.household") + "#trades")
 
-    bundle = _bundle_chores(chore)
-    bundle_ids = {item.id for item in bundle}
-    for trade in db.session.scalars(db.select(ChoreTrade).where(ChoreTrade.status == "pending")).all():
-        if bundle_ids & set(trade.parsed_chore_ids()):
-            flash("One of those chores already has an open trade.", "warning")
-            return redirect(url_for("hq.household") + "#trades")
+        requested = db.session.get(
+            User,
+            requested_to,
+        )
+
+        if (
+            not requested
+            or not requested.active
+            or requested.role
+               not in {"manager", "child"}
+            or requested.id == current_user.id
+        ):
+            flash(
+                "Choose another eligible household member "
+                "or leave the trade open.",
+                "danger",
+            )
+            return redirect(
+                url_for("hq.household")
+                + "#trades"
+            )
+
+    bundle = _bundle_chores(
+        chore
+    )
+
+    bundle_ids = {
+        item.id
+        for item in bundle
+    }
+
+    open_trades = db.session.scalars(
+        db.select(
+            ChoreTrade
+        ).where(
+            ChoreTrade.status == "pending"
+        )
+    ).all()
+
+    for old_trade in open_trades:
+
+        if (
+            bundle_ids
+            & set(
+                old_trade.parsed_chore_ids()
+            )
+        ):
+            flash(
+                "One of those chores already has an open trade.",
+                "warning",
+            )
+            return redirect(
+                url_for("hq.household")
+                + "#trades"
+            )
 
     trade = ChoreTrade(
         offered_by=current_user.id,
         requested_to=requested_to,
-        chore_ids=",".join(str(item.id) for item in bundle),
+        chore_ids=",".join(
+            str(item.id)
+            for item in bundle
+        ),
         chore_date=chore.task_date,
-        chore_summary=_bundle_summary(bundle)[:400],
+        chore_summary=_bundle_summary(
+            bundle
+        )[:400],
         offered_points=offered_points,
-        note=request.form.get("note", "").strip()[:1000],
+        note=request.form.get(
+            "note",
+            "",
+        ).strip()[:1000],
     )
-    db.session.add(trade)
-    db.session.flush()
-    add_points(
-        current_user.id,
-        -offered_points,
-        f"Chore trade escrow: {trade.chore_summary}",
-        "chore_trade_escrow",
-        trade.id,
-        current_user.id,
+
+    db.session.add(
+        trade
     )
+
+    # IMPORTANT:
+    # There is intentionally NO negative PointTransaction here.
+    db.session.commit()
+
     if requested_to:
-        notify(requested_to, "🔄", f"Chore trade offer from {current_user.name}", f"{trade.chore_summary} · {offered_points} points", url_for("hq.household") + "#trades")
-    log_activity(current_user.id, "posted chore trade", "chore_trade", trade.id, f"{trade.chore_summary} · {offered_points} points")
-    flash("Trade posted. Your offered points are safely held in escrow.", "success")
-    return redirect(url_for("hq.household") + "#trades")
+
+        tip_text = (
+            f" · {offered_points} bonus points"
+            if offered_points
+            else ""
+        )
+
+        notify(
+            requested_to,
+            "🔄",
+            f"Chore trade offer from {current_user.name}",
+            f"{trade.chore_summary}{tip_text}",
+            url_for("hq.household")
+            + "#trades",
+        )
+
+    log_activity(
+        current_user.id,
+        "posted chore trade",
+        "chore_trade",
+        trade.id,
+        (
+            f"{trade.chore_summary} · "
+            f"{offered_points} free bonus points"
+        ),
+    )
+
+    if offered_points:
+
+        flash(
+            f"Trade posted with a {offered_points}-point "
+            "bonus tip. No points were deducted from you.",
+            "success",
+        )
+
+    else:
+
+        flash(
+            "Trade posted. No points were deducted.",
+            "success",
+        )
+
+    return redirect(
+        url_for("hq.household")
+        + "#trades"
+    )
+
 
 
 @bp.post("/household/chore-trades/<int:trade_id>/accept")
 @login_required
 def chore_trade_accept(trade_id: int):
-    if current_user.role not in {"manager", "child"}:
-        flash("Only household members with chore assignments can accept trades.", "warning")
-        return redirect(url_for("hq.household") + "#trades")
-    trade = db.session.get(ChoreTrade, trade_id)
-    if not trade or trade.status != "pending" or trade.offered_by == current_user.id:
-        flash("That trade is no longer available.", "danger")
-        return redirect(url_for("hq.household") + "#trades")
-    if trade.requested_to and trade.requested_to != current_user.id:
-        flash("That offer was made to someone else.", "danger")
-        return redirect(url_for("hq.household") + "#trades")
-    if trade.chore_date < date.today():
-        flash("That chore date has already passed.", "danger")
-        return redirect(url_for("hq.household") + "#trades")
 
-    chores = [db.session.get(Chore, item_id) for item_id in trade.parsed_chore_ids()]
-    if not chores or any(item is None or item.status != "assigned" or item.assigned_to != trade.offered_by for item in chores):
+    if current_user.role not in {
+        "manager",
+        "child",
+    }:
+        flash(
+            "Only household members with chore assignments "
+            "can accept trades.",
+            "warning",
+        )
+        return redirect(
+            url_for("hq.household")
+            + "#trades"
+        )
+
+    trade = db.session.get(
+        ChoreTrade,
+        trade_id,
+    )
+
+    if (
+        not trade
+        or trade.status != "pending"
+        or trade.offered_by
+           == current_user.id
+    ):
+        flash(
+            "That trade is no longer available.",
+            "danger",
+        )
+        return redirect(
+            url_for("hq.household")
+            + "#trades"
+        )
+
+    if (
+        trade.requested_to
+        and trade.requested_to
+            != current_user.id
+    ):
+        flash(
+            "That offer was made to someone else.",
+            "danger",
+        )
+        return redirect(
+            url_for("hq.household")
+            + "#trades"
+        )
+
+    if trade.chore_date < date.today():
+
+        flash(
+            "That chore date has already passed.",
+            "danger",
+        )
+
+        return redirect(
+            url_for("hq.household")
+            + "#trades"
+        )
+
+    chores = [
+        db.session.get(
+            Chore,
+            item_id,
+        )
+        for item_id
+        in trade.parsed_chore_ids()
+    ]
+
+    if (
+        not chores
+        or any(
+            item is None
+            or item.status != "assigned"
+            or item.assigned_to
+               != trade.offered_by
+            for item in chores
+        )
+    ):
+
         trade.status = "canceled"
-        trade.resolved_at = datetime.now(timezone.utc)
-        add_points(trade.offered_by, trade.offered_points, f"Refund for unavailable chore trade: {trade.chore_summary}", "chore_trade_refund", trade.id, None)
-        flash("The assignment changed, so the trade was canceled and refunded.", "warning")
-        return redirect(url_for("hq.household") + "#trades")
+        trade.resolved_at = (
+            datetime.now(
+                timezone.utc
+            )
+        )
+
+        db.session.commit()
+
+        flash(
+            "The assignment changed, "
+            "so the trade was canceled.",
+            "warning",
+        )
+
+        return redirect(
+            url_for("hq.household")
+            + "#trades"
+        )
 
     for item in chores:
-        item.assigned_to = current_user.id
-        item.reassignment_reason = f"Chore trade accepted from {trade.offerer.name} for {trade.offered_points} points."
+
+        item.assigned_to = (
+            current_user.id
+        )
+
+        item.reassignment_reason = (
+            "Chore trade accepted from "
+            f"{trade.offerer.name}."
+        )
+
     trade.status = "accepted"
-    trade.accepted_by = current_user.id
-    trade.resolved_at = datetime.now(timezone.utc)
-    add_points(
-        current_user.id,
-        trade.offered_points,
-        f"Accepted chore trade: {trade.chore_summary}",
-        "chore_trade_payment",
-        trade.id,
-        trade.offered_by,
+    trade.accepted_by = (
+        current_user.id
     )
-    notify(trade.offered_by, "✅", f"{current_user.name} accepted your chore trade", f"{trade.chore_summary} · {trade.offered_points} points", url_for("hq.household") + "#trades")
-    log_activity(current_user.id, "accepted chore trade", "chore_trade", trade.id, f"{trade.chore_summary} · {trade.offered_points} points")
-    flash(f"Trade accepted. {trade.offered_points} points were transferred to you.", "success")
-    return redirect(url_for("hq.household") + "#trades")
+
+    trade.resolved_at = (
+        datetime.now(
+            timezone.utc
+        )
+    )
+
+    db.session.flush()
+
+    # The accepter can earn the bonus tip.
+    # The offerer's balance is NEVER touched.
+    if trade.offered_points > 0:
+
+        add_points(
+            current_user.id,
+            trade.offered_points,
+            (
+                "Chore trade bonus: "
+                f"{trade.chore_summary}"
+            ),
+            "chore_trade_bonus",
+            trade.id,
+            trade.offered_by,
+        )
+
+    else:
+
+        db.session.commit()
+
+    notify(
+        trade.offered_by,
+        "✅",
+        (
+            f"{current_user.name} accepted "
+            "your chore trade"
+        ),
+        trade.chore_summary,
+        url_for("hq.household")
+        + "#trades",
+    )
+
+    log_activity(
+        current_user.id,
+        "accepted chore trade",
+        "chore_trade",
+        trade.id,
+        (
+            f"{trade.chore_summary} · "
+            f"{trade.offered_points} bonus points"
+        ),
+    )
+
+    if trade.offered_points > 0:
+
+        flash(
+            f"Trade accepted. You earned "
+            f"{trade.offered_points} bonus points.",
+            "success",
+        )
+
+    else:
+
+        flash(
+            "Trade accepted.",
+            "success",
+        )
+
+    return redirect(
+        url_for("hq.household")
+        + "#trades"
+    )
+
 
 
 @bp.post("/household/chore-trades/<int:trade_id>/cancel")
 @login_required
 def chore_trade_cancel(trade_id: int):
-    trade = db.session.get(ChoreTrade, trade_id)
-    if not trade or trade.status != "pending":
-        flash("That trade cannot be canceled.", "danger")
-        return redirect(url_for("hq.household") + "#trades")
-    allowed = current_user.is_parent or current_user.id == trade.offered_by or (trade.requested_to and current_user.id == trade.requested_to)
-    if not allowed:
-        flash("You cannot cancel that trade.", "danger")
-        return redirect(url_for("hq.household") + "#trades")
-    trade.status = "declined" if trade.requested_to == current_user.id and current_user.id != trade.offered_by else "canceled"
-    trade.resolved_at = datetime.now(timezone.utc)
-    add_points(
-        trade.offered_by,
-        trade.offered_points,
-        f"Refund for {trade.status} chore trade: {trade.chore_summary}",
-        "chore_trade_refund",
-        trade.id,
-        current_user.id,
+
+    trade = db.session.get(
+        ChoreTrade,
+        trade_id,
     )
-    if trade.offered_by != current_user.id:
-        notify(trade.offered_by, "↩️", f"Chore trade {trade.status}", trade.chore_summary, url_for("hq.household") + "#trades")
-    log_activity(current_user.id, f"{trade.status} chore trade", "chore_trade", trade.id, trade.chore_summary)
-    flash("Trade closed and the escrowed points were refunded.", "success")
-    return redirect(url_for("hq.household") + "#trades")
+
+    if (
+        not trade
+        or trade.status != "pending"
+    ):
+        flash(
+            "That trade cannot be canceled.",
+            "danger",
+        )
+        return redirect(
+            url_for("hq.household")
+            + "#trades"
+        )
+
+    allowed = (
+        current_user.is_parent
+        or current_user.id
+           == trade.offered_by
+        or (
+            trade.requested_to
+            and current_user.id
+                == trade.requested_to
+        )
+    )
+
+    if not allowed:
+
+        flash(
+            "You cannot cancel that trade.",
+            "danger",
+        )
+
+        return redirect(
+            url_for("hq.household")
+            + "#trades"
+        )
+
+    trade.status = (
+        "declined"
+        if (
+            trade.requested_to
+            == current_user.id
+            and current_user.id
+                != trade.offered_by
+        )
+        else "canceled"
+    )
+
+    trade.resolved_at = (
+        datetime.now(
+            timezone.utc
+        )
+    )
+
+    # Nothing was deducted,
+    # so nothing needs to be refunded.
+    db.session.commit()
+
+    if (
+        trade.offered_by
+        != current_user.id
+    ):
+
+        notify(
+            trade.offered_by,
+            "↩️",
+            f"Chore trade {trade.status}",
+            trade.chore_summary,
+            url_for("hq.household")
+            + "#trades",
+        )
+
+    log_activity(
+        current_user.id,
+        f"{trade.status} chore trade",
+        "chore_trade",
+        trade.id,
+        trade.chore_summary,
+    )
+
+    flash(
+        "Trade closed. No points were charged.",
+        "success",
+    )
+
+    return redirect(
+        url_for("hq.household")
+        + "#trades"
+    )
