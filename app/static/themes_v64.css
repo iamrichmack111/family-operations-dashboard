@@ -8,3 +8,19 @@ html,body{background:radial-gradient(circle at 8% -10%,color-mix(in srgb,var(--f
 .fo64-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.fo64-theme{border:1px solid #ffffff20;background:#ffffff08;color:white;border-radius:14px;padding:9px;text-align:left;transition:.16s ease}.fo64-theme:hover{transform:translateY(-1px);border-color:#ffffff44}.fo64-theme.active{outline:2px solid var(--fo-accent);background:#ffffff12}.fo64-preview{height:42px;border-radius:10px;margin-bottom:7px}.fo64-cat{display:block;color:#9ca3af;font-size:.70rem;margin-top:2px}
 .completion-upload-card{border:1px solid color-mix(in srgb,var(--fo-accent) 34%,transparent);border-radius:16px;padding:14px;background:color-mix(in srgb,var(--fo-panel) 78%,transparent)}.completion-upload-card textarea{min-height:92px}
 @media(max-width:700px){.fo64-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:440px){.fo64-grid{grid-template-columns:1fr}.fo64-panel{right:8px;width:calc(100vw - 16px)}}
+
+.fo-fruit-nav{cursor:pointer;background:transparent;border:0;white-space:nowrap}.fo-fruit-nav:hover{color:var(--fo-accent)!important}.fo64-panel{z-index:2147483000}.fo64-launcher{z-index:2147483001}
+
+/* Fruit themes include an illustrated fruit badge in every preview and a subtle
+   fruit watermark across the live dashboard, rather than generic gradients. */
+.fo64-fruit-preview{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:72px}
+.fo64-fruit-icon{font-size:42px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.42));transform:rotate(-12deg)}
+body.fo-fruit-active::before{content:var(--fo-fruit-mark);position:fixed;top:12vh;right:4vw;font-size:clamp(125px,28vw,390px);opacity:.105;z-index:0;pointer-events:none;filter:drop-shadow(0 10px 40px var(--fo-accent));transform:rotate(-14deg)}
+body.fo-fruit-active main,body.fo-fruit-active nav{position:relative;z-index:1}
+body.fo-fruit-active .glass-panel{border-color:color-mix(in srgb,var(--fo-accent) 34%,transparent)!important}
+
+/* Unique fruit illustration for fruits without an exact Unicode emoji. Never show another fruit's emoji. */
+.fo64-fruit-emoji{font-size:42px;filter:drop-shadow(0 3px 6px #0007)}
+.fo64-fruit-vector{position:relative;display:grid;place-items:center;width:54px;height:51px;border:3px solid var(--fruit-rind);border-radius:45% 46% 49% 47%;background:radial-gradient(circle at 34% 28%,#ffffffaa 0%,transparent 24%),linear-gradient(140deg,var(--fruit-flesh),var(--fruit-rind));box-shadow:inset -8px -7px 10px #0003,0 5px 9px #0004;color:#fff;text-shadow:0 2px 3px #0007;font-weight:800;letter-spacing:.04em;}
+.fo64-fruit-vector::before{content:"";position:absolute;left:27px;top:-11px;width:19px;height:12px;border-radius:90% 4% 90% 4%;background:#64c66e;transform:rotate(-25deg);border:1px solid #277534;}
+.fo64-fruit-vector span{position:relative;font-size:15px;}

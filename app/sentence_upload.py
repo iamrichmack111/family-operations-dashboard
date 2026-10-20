@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 
 from .extensions import db
 from .models import Homework
+from .sentence_count import sentences_in_upload
 from .services import log_activity, notify_roles
 
 bp = Blueprint("sentence_upload", __name__)
@@ -26,7 +27,7 @@ def _upload_dir() -> Path:
 def _can_manage_homework(item: Homework) -> bool:
     if item.assigned_to == current_user.id:
         return True
-    return bool(getattr(current_user, "can_approve", False) or current_user.role == "parent")
+    return current_user.role in {"parent", "manager"}
 
 
 @bp.get("/upload-sentences")
@@ -81,6 +82,13 @@ def submit_homework(item_id: int):
         flash("That upload was empty. Choose the homework file again.", "danger")
         return redirect(url_for("sentence_upload.upload_sentences") + f"#homework-{item.id}")
 
+    try:
+        detected = sentences_in_upload(data, suffix)
+    except Exception as error:
+        # Invalid text documents must not accidentally earn points.
+        flash(f"Could not read sentence content: {type(error).__name__}. Upload a valid document.", "danger")
+        return redirect(url_for("sentence_upload.upload_sentences") + f"#homework-{item.id}")
+
     folder = _upload_dir()
     stored = f"homework-{item.id}-{uuid4().hex}{suffix}"
     destination = folder / stored
@@ -89,6 +97,7 @@ def submit_homework(item_id: int):
     old_name = (getattr(item, "submission_name", "") or "").strip()
     item.submission_name = stored
     item.submission_original_name = original
+    item.sentence_count = detected
     item.status = "completed"
     item.completed_by = current_user.id
 
@@ -109,7 +118,10 @@ def submit_homework(item_id: int):
         url_for("main.approvals"),
     )
     log_activity(current_user.id, "uploaded homework", "homework", item.id, original)
-    flash("📚 Homework uploaded and sent to Approvals.", "success")
+    if detected is None:
+        flash("📚 Uploaded to Approvals. Text could not be counted automatically; a parent or manager must enter the verified sentence count.", "warning")
+    else:
+        flash(f"📚 {detected} sentences detected = {detected} potential points. Awaiting approval.", "success")
     return redirect(url_for("sentence_upload.upload_sentences"))
 
 

@@ -68,6 +68,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .parent import bp as parent_bp
     from .hq import bp as hq_bp
     app.register_blueprint(auth_bp); app.register_blueprint(main_bp); app.register_blueprint(parent_bp); app.register_blueprint(hq_bp)
+    from .payroll import bp as payroll_bp
+    app.register_blueprint(payroll_bp)
     from .sentence_upload import bp as sentence_upload_bp
     app.register_blueprint(sentence_upload_bp)
     with app.app_context():
