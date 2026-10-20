@@ -85,6 +85,7 @@ class Homework(TimestampMixin, db.Model):
     __tablename__ = "homework"
     submission_name = db.Column(db.String(255), default="", nullable=False)
     submission_original_name = db.Column(db.String(255), default="", nullable=False)
+    sentence_count = db.Column(db.Integer, nullable=True)
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(180), nullable=False)
     subject = db.Column(db.String(100), nullable=False)
@@ -193,6 +194,28 @@ class PointTransaction(db.Model):
     user = db.relationship("User", foreign_keys=[user_id])
     creator = db.relationship("User", foreign_keys=[created_by])
 
+
+
+class PayrollGrant(db.Model):
+    __tablename__ = "payroll_grants"
+    id = db.Column(db.Integer, primary_key=True)
+    manager_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    remaining = db.Column(db.Integer, nullable=False)
+    note = db.Column(db.String(255), default="", nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class PayrollPayout(db.Model):
+    __tablename__ = "payroll_payouts"
+    id = db.Column(db.Integer, primary_key=True)
+    grant_id = db.Column(db.Integer, db.ForeignKey("payroll_grants.id"), nullable=False, index=True)
+    manager_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    points = db.Column(db.Integer, nullable=False)
+    reason = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
 
 class PointRequest(TimestampMixin, db.Model):

@@ -301,8 +301,20 @@ def review_task(kind,item_id):
         flash("🚫 Invalid review.", "danger")
         return redirect(url_for("main.approvals"))
 
+    # Parents and managers may review any completed homework, including their
+    # own. In particular, Jasmin (manager) may verify her own sentence upload.
+    # The assignee and reviewer are recorded separately for the audit trail.
     old_status = item.status
     review_note = request.form.get("note", "").strip()
+    award_points = item.points
+    if kind == "homework" and status == "approved" and item.submission_name:
+        # Manual verification is required for images, scans, and legacy .doc files.
+        proposed = request.form.get("verified_sentences", type=int)
+        if proposed is None or not 0 <= proposed <= 10000:
+            flash("Verify the sentence count (0–10,000) before approving uploaded homework.", "danger")
+            return redirect(url_for("main.approvals"))
+        award_points = proposed
+        item.sentence_count = proposed
     item.status = status
     item.approved_by = current_user.id
 
@@ -317,7 +329,7 @@ def review_task(kind,item_id):
     if status == "approved" and old_status != "approved":
         add_points(
             item.assigned_to,
-            item.points,
+            award_points,
             f"Approved {kind}: {item.title}",
             kind,
             item.id,
@@ -336,7 +348,9 @@ def review_task(kind,item_id):
         status.replace("_", " "),
         kind,
         item.id,
-        f"{item.title}{': ' + review_note if review_note else ''}",
+        f"{item.title}{': ' + review_note if review_note else ''}"
+        + (f" · verified {award_points} sentences" if kind == "homework" and status == "approved" and item.submission_name else "")
+        + (" · manager self-approval" if current_user.role == "manager" and item.assigned_to == current_user.id else ""),
     )
 
     if wants_htmx():
@@ -436,6 +450,20 @@ def acknowledge_violation(violation_id):
 @login_required
 def notifications():
     rows=db.session.scalars(db.select(Notification).where(Notification.user_id==current_user.id).order_by(Notification.created_at.desc()).limit(200)).all(); return render_template("notifications.html",rows=rows)
+
+
+@bp.post("/notifications/read-all")
+@login_required
+def notifications_read_all():
+    """Mark only the signed-in user's unread alerts as read."""
+    db.session.execute(
+        db.update(Notification)
+        .where(Notification.user_id == current_user.id, Notification.read_at.is_(None))
+        .values(read_at=datetime.now(timezone.utc))
+    )
+    db.session.commit()
+    flash("All alerts marked as read.", "success")
+    return redirect(url_for("main.notifications"))
 
 
 @bp.post("/notifications/<int:notification_id>/read")

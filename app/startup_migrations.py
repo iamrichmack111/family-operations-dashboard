@@ -16,28 +16,20 @@ def _column_names(table_name: str) -> set[str]:
 
 
 def run_startup_migrations() -> list[str]:
-    """Apply safe additive schema updates and return the applied migration IDs.
-
-    The migration uses ``ALTER TABLE ... ADD COLUMN`` only. It never recreates
-    or truncates a table, so existing users, PIN hashes, chores, and history are
-    left untouched. The second column check handles two app workers starting at
-    the same time and racing to apply the same idempotent change.
-    """
-
-    if "proof_photo_name" in _column_names("chores"):
-        return []
-
-    statement = text(
-        "ALTER TABLE chores "
-        "ADD COLUMN proof_photo_name VARCHAR(255) NOT NULL DEFAULT ''"
+    """Add missing columns without replacing or resetting existing household records."""
+    applied = []
+    columns = (
+        ("chores", "proof_photo_name", "VARCHAR(255) NOT NULL DEFAULT ''"),
+        ("homework", "sentence_count", "INTEGER"),
     )
-
-    try:
-        with db.engine.begin() as connection:
-            connection.execute(statement)
-    except SQLAlchemyError:
-        if "proof_photo_name" not in _column_names("chores"):
-            raise
-        return []
-
-    return ["chores.proof_photo_name"]
+    for table, column, definition in columns:
+        if column in _column_names(table) or not _column_names(table):
+            continue
+        try:
+            with db.engine.begin() as connection:
+                connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {definition}"))
+        except SQLAlchemyError:
+            if column not in _column_names(table):
+                raise
+        applied.append(f"{table}.{column}")
+    return applied
