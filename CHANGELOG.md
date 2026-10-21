@@ -1,3 +1,38 @@
+# Changelog
+
+<!-- JASMIN-FRUIT-STUDIO-2.1 -->
+
+## [2026-10-21] — Fruit Studio 2.1 & Dashboard Improvements
+
+### Added
+- Fruit Studio 2.1 with richer fruit-inspired color palettes.
+- Light and Dark appearance options for fruit themes.
+- Dashboard Focus Mode with task and review views.
+- Four-character login PIN reset support through the administrative reset procedure.
+- Background dashboard hosting through systemd and Gunicorn.
+- Local dashboard access on port 8013.
+
+### Improved
+- Increased color saturation in Light Mode.
+- Improved navigation, dashboard card, and assignment text contrast.
+- Improved dashboard readability across fruit themes.
+- Improved Point Requests access and dashboard navigation.
+- Updated family dashboard theme styling and appearance controls.
+
+### Data and Recovery
+- Supported restoration of historical point requests, messages, and activity records from existing backups.
+- Preserved family point balances during recovery procedures.
+- Kept application databases and account credentials outside Git.
+
+### Deployment
+- Development dashboard hosted at `192.168.1.114:8013`.
+- Local hostname shortcut configured as `family.local:8013`.
+- Dashboard configured to continue running after terminal closure.
+- Tailscale gateway configuration kept separate from local dashboard access.
+
+**Note:** Local hostname mappings, systemd services, and database
+contents are machine-specific and are not deployed by a Git push.
+
 ## Version 2026.10.19 — Family Operations Dashboard Update
 
 
