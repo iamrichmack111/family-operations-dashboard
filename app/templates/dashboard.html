@@ -150,18 +150,6 @@
 {% block scripts %}
 <script>
 window.addEventListener('DOMContentLoaded', () => {
-  const focusBtn = document.getElementById('focusModeBtn');
-  const savedFocus = localStorage.getItem('familyFocusMode') === '1';
-  document.body.classList.toggle('focus-mode', savedFocus);
-  if (focusBtn) {
-    focusBtn.textContent = savedFocus ? 'Exit focus mode' : 'Focus mode';
-    focusBtn.addEventListener('click', () => {
-      const enabled = !document.body.classList.contains('focus-mode');
-      document.body.classList.toggle('focus-mode', enabled);
-      localStorage.setItem('familyFocusMode', enabled ? '1' : '0');
-      focusBtn.textContent = enabled ? 'Exit focus mode' : 'Focus mode';
-    });
-  }
   const P = {{ points|tojson }}, C = {{ completion|tojson }}, E = {{ earned_vs_deducted|tojson }}, W = {{ workload|tojson }};
   const S = {{ chore_status|tojson }}, R = {{ review_week|tojson }}, M = {{ point_movement|tojson }};
   const grid = 'rgba(139, 92, 255, .10)';
