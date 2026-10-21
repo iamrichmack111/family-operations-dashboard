@@ -7,13 +7,13 @@
   <title>{% block title %}Family Operations Dashboard{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='themes_v64.css') }}?v=fruit-studio-2">
-  <script src="{{ url_for('static', filename='themes_v64.js') }}?v=fruit-studio-2" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='themes_v64.css') }}?v=fruit-studio-2-1">
+  <script src="{{ url_for('static', filename='themes_v64.js') }}?v=fruit-studio-2-1" defer></script>
   <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   {% block head %}{% endblock %}
   <link rel="stylesheet"
-        href="{{ url_for('static', filename='fruit_focus.css') }}?v=fruit-studio-2">
+        href="{{ url_for('static', filename='fruit_focus.css') }}?v=fruit-studio-2-1">
 </head>
 <body class="app-shell {% if not current_user.is_authenticated %}login-page{% endif %}">
   {% if current_user.is_authenticated %}
