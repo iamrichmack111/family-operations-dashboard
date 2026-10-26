@@ -840,7 +840,7 @@ def chore_trade_create():
     offered_points = max(
         0,
         min(
-            500,
+            5000,
             request.form.get(
                 "offered_points",
                 type=int,

@@ -1,0 +1,1011 @@
+:root {
+  --fruit-primary: var(--fo-accent, #ff6688);
+  --fruit-secondary: var(--fo-accent2, #ffb347);
+  --fruit-surface: var(--fo-panel, #202030);
+  --fruit-text: var(--fo-text, #ffffff);
+  --fruit-muted: var(--fo-muted, #bbc0ce);
+}
+
+body {
+  color: var(--fruit-text) !important;
+  accent-color: var(--fruit-primary);
+}
+
+.glass-panel,
+.metric-card,
+.task-card,
+.modal-content,
+.dropdown-menu,
+.card {
+  background: var(--fruit-surface) !important;
+  color: var(--fruit-text) !important;
+  border: 1px solid var(--fruit-primary) !important;
+  border-radius: 22px !important;
+}
+
+.btn-primary,
+.btn-gradient,
+.btn-complete,
+.btn-lux {
+  background: linear-gradient(
+    135deg,
+    var(--fruit-primary),
+    var(--fruit-secondary)
+  ) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+
+.form-control,
+.form-select,
+.dark-field {
+  background: var(--fruit-surface) !important;
+  color: var(--fruit-text) !important;
+  border: 1px solid var(--fruit-secondary) !important;
+  border-radius: 12px !important;
+}
+
+.nav-link:hover,
+.nav-link.active,
+a:hover {
+  color: var(--fruit-primary) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus-visible {
+  outline: 2px solid var(--fruit-primary) !important;
+  outline-offset: 2px;
+}
+
+.fruit-focus-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+
+.fruit-focus-controls button {
+  padding: 12px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--fruit-primary);
+  background: var(--fruit-surface);
+  color: var(--fruit-text);
+  cursor: pointer;
+}
+
+.fruit-focus-controls button.active {
+  background: var(--fruit-primary);
+  color: #fff;
+}
+
+body.focus-mode .glass-panel,
+body.focus-mode .metric-card,
+body.focus-mode .task-card {
+  border-radius: 24px !important;
+  box-shadow: 0 12px 30px #0003 !important;
+}
+
+body.focus-mode .dashboard-hero {
+  border-radius: 28px;
+  padding: 28px;
+}
+
+body.focus-mode .metric-grid {
+  gap: 16px;
+}
+
+body.focus-mode [data-focus-hidden="true"] {
+  display: none !important;
+}
+
+@media (max-width: 700px) {
+  .fruit-focus-controls {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* =========================================
+   FAMILY OPERATIONS — CUTE MODERN UI
+   Fruit Studio Edition
+   ========================================= */
+
+:root {
+  --cute-primary: var(--fo-accent, #ff79b0);
+  --cute-secondary: var(--fo-accent2, #ffc6df);
+  --cute-panel: var(--fo-panel, #251b32);
+  --cute-text: var(--fo-text, #fff8fd);
+  --cute-muted: var(--fo-muted, #dac4d6);
+
+  --cute-radius: 24px;
+  --cute-shadow: 0 12px 35px rgba(0,0,0,.18);
+}
+
+/* Modern typography */
+
+body {
+  font-family:
+    "Nunito",
+    "Inter",
+    ui-sans-serif,
+    system-ui,
+    sans-serif !important;
+  letter-spacing: -.012em;
+}
+
+/* Beautiful gradient headings */
+
+.page-title h1,
+.dashboard-hero h1 {
+  font-weight: 850 !important;
+  letter-spacing: -.045em;
+  line-height: 1.15;
+  color: var(--cute-text) !important;
+}
+
+/* Glass navigation */
+
+.glass-nav {
+  background:
+    color-mix(
+      in srgb,
+      var(--cute-panel) 88%,
+      transparent
+    ) !important;
+
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+
+  border-bottom:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--cute-primary) 30%,
+      transparent
+    ) !important;
+}
+
+/* Cute modern cards */
+
+.glass-panel,
+.metric-card,
+.task-card,
+.card,
+.dashboard-hero {
+  border-radius: var(--cute-radius) !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(
+        in srgb,
+        var(--cute-panel) 94%,
+        var(--cute-primary)
+      ),
+      var(--cute-panel)
+    ) !important;
+
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--cute-primary) 28%,
+      transparent
+    ) !important;
+
+  box-shadow: var(--cute-shadow) !important;
+
+  transition:
+    transform .25s ease,
+    box-shadow .25s ease,
+    border-color .25s ease;
+}
+
+/* Card hover */
+
+.metric-card:hover,
+.task-card:hover {
+  transform: translateY(-3px);
+
+  border-color:
+    var(--cute-primary) !important;
+
+  box-shadow:
+    0 16px 40px
+    color-mix(
+      in srgb,
+      var(--cute-primary) 18%,
+      transparent
+    ) !important;
+}
+
+/* Buttons */
+
+.btn {
+  border-radius: 14px !important;
+  font-weight: 750;
+  transition:
+    transform .2s ease,
+    box-shadow .2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.btn-primary,
+.btn-gradient,
+.btn-lux,
+.btn-complete {
+  background:
+    linear-gradient(
+      125deg,
+      var(--cute-primary),
+      var(--cute-secondary)
+    ) !important;
+
+  border: none !important;
+  color: #101018 !important;
+
+  box-shadow:
+    0 7px 20px
+    color-mix(
+      in srgb,
+      var(--cute-primary) 25%,
+      transparent
+    ) !important;
+}
+
+/* Inputs */
+
+.form-control,
+.form-select,
+.dark-field {
+  border-radius: 15px !important;
+  padding: 11px 14px;
+
+  background:
+    color-mix(
+      in srgb,
+      var(--cute-panel) 94%,
+      black
+    ) !important;
+
+  color: var(--cute-text) !important;
+
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--cute-primary) 35%,
+      transparent
+    ) !important;
+}
+
+/* Tables */
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--cute-text);
+  --bs-table-border-color:
+    color-mix(
+      in srgb,
+      var(--cute-primary) 20%,
+      transparent
+    );
+}
+
+.table th {
+  color: var(--cute-primary) !important;
+  font-weight: 800;
+}
+
+.table tbody tr {
+  transition: background .2s ease;
+}
+
+.table tbody tr:hover {
+  background:
+    color-mix(
+      in srgb,
+      var(--cute-primary) 10%,
+      transparent
+    );
+}
+
+/* Focus Mode */
+
+body.focus-mode .dashboard-hero {
+  padding: 32px !important;
+  border-radius: 30px !important;
+}
+
+body.focus-mode .glass-panel {
+  border-radius: 28px !important;
+}
+
+/* Theme selector */
+
+.fo64-panel {
+  border-radius: 28px !important;
+  background: var(--cute-panel) !important;
+}
+
+.fo64-theme {
+  border-radius: 18px !important;
+  overflow: hidden;
+}
+
+.fo64-theme.active {
+  outline: 3px solid var(--cute-primary) !important;
+}
+
+/* Soft focus outlines */
+
+:focus-visible {
+  outline: 3px solid var(--cute-primary) !important;
+  outline-offset: 3px;
+}
+
+/* Motion accessibility */
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-card,
+  .task-card,
+  .btn {
+    transition: none !important;
+  }
+
+  .metric-card:hover,
+  .task-card:hover,
+  .btn:hover {
+    transform: none !important;
+  }
+}
+
+/* Mobile layout */
+
+@media (max-width: 768px) {
+  .dashboard-hero {
+    padding: 20px !important;
+  }
+
+  .glass-panel,
+  .metric-card {
+    border-radius: 19px !important;
+  }
+}
+
+
+
+/* FRUIT_STUDIO_2_STYLES */
+
+:root {
+  --fruit-primary:var(--fo-accent);
+  --fruit-secondary:var(--fo-accent2);
+  --fruit-surface:var(--fo-panel);
+  --fruit-text:var(--fo-text);
+  --fruit-muted:var(--fo-muted);
+  color-scheme:dark;
+}
+
+:root[data-fruit-mode="light"] {
+  color-scheme:light;
+}
+
+body {
+  color:var(--fo-text)!important;
+  background:
+    radial-gradient(
+      circle at 10% 0%,
+      color-mix(in srgb,var(--fo-accent) 17%,transparent),
+      transparent 38%
+    ),
+    radial-gradient(
+      circle at 95% 90%,
+      color-mix(in srgb,var(--fo-accent2) 19%,transparent),
+      transparent 45%
+    ),
+    linear-gradient(145deg,var(--fo-bg),var(--fo-bg2))
+    fixed!important;
+}
+
+.glass-nav,
+.glass-panel,
+.metric-card,
+.task-card,
+.card,
+.modal-content,
+.dropdown-menu {
+  background:var(--fo-panel)!important;
+  color:var(--fo-text)!important;
+  border-color:
+    color-mix(in srgb,var(--fo-accent) 36%,transparent)
+    !important;
+}
+
+.glass-nav .nav-link,
+.identity-chip,
+.page-title p,
+.metric-card small,
+.card p,
+.glass-panel p {
+  color:var(--fo-text)!important;
+}
+
+.page-title h1,
+.glass-panel h2,
+.glass-panel h3,
+.metric-card strong {
+  color:var(--fo-text)!important;
+}
+
+.btn-primary,
+.btn-gradient,
+.btn-complete,
+.btn-lux {
+  background:
+    linear-gradient(
+      135deg,
+      var(--fo-accent),
+      var(--fo-accent2)
+    )!important;
+  color:var(--fo-bg)!important;
+  border-color:transparent!important;
+}
+
+.form-control,
+.form-select,
+.dark-field,
+input,
+textarea,
+select {
+  accent-color:var(--fo-accent);
+}
+
+.form-control,
+.form-select,
+.dark-field {
+  background:var(--fo-panel)!important;
+  color:var(--fo-text)!important;
+  border-color:var(--fo-accent2)!important;
+}
+
+.form-control::placeholder {
+  color:var(--fo-muted)!important;
+}
+
+.table {
+  --bs-table-bg:transparent!important;
+  --bs-table-color:var(--fo-text)!important;
+  --bs-table-border-color:
+    color-mix(in srgb,var(--fo-accent) 28%,transparent)
+    !important;
+}
+
+.table td,
+.table th {
+  color:var(--fo-text)!important;
+}
+
+.table tbody tr:hover {
+  background:
+    color-mix(in srgb,var(--fo-accent) 10%,transparent);
+}
+
+a:not(.btn) {
+  color:var(--fo-accent);
+}
+
+.fo64-panel {
+  background:var(--fo-panel)!important;
+  color:var(--fo-text)!important;
+  border:1px solid var(--fo-accent2)!important;
+}
+
+.fo64-theme {
+  background:var(--fo-bg)!important;
+  color:var(--fo-text)!important;
+  border-color:var(--fo-accent2)!important;
+}
+
+.fo64-cat {
+  color:var(--fo-muted)!important;
+}
+
+.fruit-mode-controls {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+  margin-bottom:16px;
+}
+
+.fruit-mode-controls button {
+  padding:12px;
+  border-radius:15px;
+  border:1px solid var(--fo-accent2);
+  background:var(--fo-bg);
+  color:var(--fo-text);
+  font-weight:800;
+  cursor:pointer;
+}
+
+.fruit-mode-controls button.active {
+  background:var(--fo-accent);
+  color:var(--fo-bg);
+  box-shadow:0 5px 18px
+    color-mix(in srgb,var(--fo-accent) 30%,transparent);
+}
+
+.fo64-preview {
+  border:1px solid
+    color-mix(in srgb,var(--fo-text) 15%,transparent);
+}
+
+:root[data-fruit-mode="light"] .text-secondary,
+:root[data-fruit-mode="light"] .text-muted,
+:root[data-fruit-mode="light"] .small.text-secondary {
+  color:var(--fo-muted)!important;
+}
+
+:root[data-fruit-mode="light"] .btn-outline-light {
+  color:var(--fo-text)!important;
+  border-color:var(--fo-accent)!important;
+}
+
+:root[data-fruit-mode="light"] .btn-outline-light:hover {
+  background:var(--fo-accent)!important;
+  color:white!important;
+}
+
+:root[data-fruit-mode="light"] .navbar-toggler {
+  border-color:var(--fo-accent);
+}
+
+:root[data-fruit-mode="light"] .navbar-toggler-icon {
+  filter:invert(1);
+}
+
+:root[data-fruit-mode="light"] .table-dark {
+  --bs-table-bg:transparent!important;
+  --bs-table-color:var(--fo-text)!important;
+}
+
+[hidden],
+[data-focus-hidden="true"] {
+  display:none!important;
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .fo64-theme,
+  .fruit-mode-controls button {
+    transition:none!important;
+  }
+}
+
+
+/* FRUIT_STUDIO_2_1_VIBRANT */
+
+/* Shared fruit tokens */
+:root {
+  --fruit-ink:var(--fo-text);
+  --fruit-soft-ink:var(--fo-muted);
+  --fruit-card:var(--fo-panel);
+  --fruit-border:color-mix(
+    in srgb,var(--fo-accent) 40%,transparent
+  );
+}
+
+/* LIGHT MODE — RICH FRUIT COLORS */
+
+:root[data-fruit-mode="light"] {
+  --fruit-ink:#201927;
+  --fruit-soft-ink:#514454;
+  --fruit-card:var(--fo-panel);
+  --fruit-border:color-mix(
+    in srgb,var(--fo-accent) 55%,transparent
+  );
+
+  --text:var(--fruit-ink);
+  --muted:var(--fruit-soft-ink);
+  --panel:var(--fo-panel);
+  --line:var(--fruit-border);
+
+  color-scheme:light;
+}
+
+/* Rich colorful backgrounds */
+
+:root[data-fruit-mode="light"] body {
+  color:var(--fruit-ink)!important;
+
+  background:
+    radial-gradient(
+      circle at 8% 8%,
+      color-mix(
+        in srgb,var(--fo-accent) 34%,transparent
+      ),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 90% 85%,
+      color-mix(
+        in srgb,var(--fo-leaf) 30%,transparent
+      ),
+      transparent 42%
+    ),
+    linear-gradient(
+      135deg,
+      var(--fo-bg),
+      var(--fo-bg2)
+    ) fixed!important;
+}
+
+/* Navigation */
+
+:root[data-fruit-mode="light"] .glass-nav {
+  background:
+    color-mix(
+      in srgb,var(--fo-panel) 88%,var(--fo-rind)
+    )!important;
+
+  border-bottom:
+    2px solid var(--fruit-border)!important;
+}
+
+:root[data-fruit-mode="light"] .navbar .nav-link,
+:root[data-fruit-mode="light"] .identity-chip,
+:root[data-fruit-mode="light"] .identity-copy strong,
+:root[data-fruit-mode="light"] .navbar-brand strong {
+  color:var(--fruit-ink)!important;
+  -webkit-text-fill-color:currentColor;
+}
+
+:root[data-fruit-mode="light"] .navbar .nav-link:hover {
+  background:color-mix(
+    in srgb,var(--fo-accent) 22%,transparent
+  )!important;
+}
+
+/* Dashboard hero */
+
+:root[data-fruit-mode="light"] .dashboard-hero {
+  background:
+    radial-gradient(
+      circle at 88% 20%,
+      color-mix(
+        in srgb,var(--fo-leaf) 33%,transparent
+      ),
+      transparent 35%
+    ),
+    linear-gradient(
+      120deg,
+      color-mix(
+        in srgb,var(--fo-rind) 30%,var(--fo-panel)
+      ),
+      color-mix(
+        in srgb,var(--fo-flesh) 48%,var(--fo-panel)
+      )
+    )!important;
+
+  border:2px solid var(--fruit-border)!important;
+}
+
+/* High-contrast hero text */
+
+:root[data-fruit-mode="light"] .dashboard-hero h1,
+:root[data-fruit-mode="light"] .dashboard-hero p,
+:root[data-fruit-mode="light"] .dashboard-hero .eyebrow {
+  color:var(--fruit-ink)!important;
+  text-shadow:none!important;
+}
+
+:root[data-fruit-mode="light"] .hero-tags span {
+  background:color-mix(
+    in srgb,var(--fo-panel) 82%,var(--fo-rind)
+  )!important;
+
+  color:var(--fruit-ink)!important;
+
+  border:1px solid var(--fruit-border)!important;
+}
+
+/* Colorful panels and cards */
+
+:root[data-fruit-mode="light"] .glass-panel,
+:root[data-fruit-mode="light"] .metric-card,
+:root[data-fruit-mode="light"] .task-card,
+:root[data-fruit-mode="light"] .card,
+:root[data-fruit-mode="light"] .modal-content,
+:root[data-fruit-mode="light"] .dropdown-menu {
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(
+        in srgb,var(--fo-panel) 78%,var(--fo-flesh)
+      ),
+      color-mix(
+        in srgb,var(--fo-panel) 82%,var(--fo-rind)
+      )
+    )!important;
+
+  color:var(--fruit-ink)!important;
+
+  border:1px solid var(--fruit-border)!important;
+
+  box-shadow:
+    0 10px 28px rgba(30,15,30,.12)!important;
+}
+
+/* Assignment cards — fix dark-on-dark text */
+
+:root[data-fruit-mode="light"] .tomorrow-assignment,
+:root[data-fruit-mode="light"] .task-card,
+:root[data-fruit-mode="light"] .message-card {
+  background:
+    color-mix(
+      in srgb,var(--fo-panel) 62%,var(--fo-flesh)
+    )!important;
+
+  color:var(--fruit-ink)!important;
+
+  border:1px solid var(--fruit-border)!important;
+}
+
+:root[data-fruit-mode="light"] .tomorrow-assignment strong,
+:root[data-fruit-mode="light"] .tomorrow-assignment small,
+:root[data-fruit-mode="light"] .task-card strong,
+:root[data-fruit-mode="light"] .task-card small,
+:root[data-fruit-mode="light"] .message-card small {
+  color:var(--fruit-ink)!important;
+  opacity:1!important;
+}
+
+:root[data-fruit-mode="light"] .tomorrow-icon {
+  background:
+    color-mix(
+      in srgb,var(--fo-leaf) 35%,var(--fo-panel)
+    )!important;
+}
+
+/* Tomorrow preview badges */
+
+:root[data-fruit-mode="light"] .preview-chip {
+  background:
+    color-mix(
+      in srgb,var(--fo-accent) 25%,var(--fo-panel)
+    )!important;
+
+  color:var(--fruit-ink)!important;
+
+  border:1px solid var(--fo-accent)!important;
+}
+
+:root[data-fruit-mode="light"] .tomorrow-note {
+  background:
+    color-mix(
+      in srgb,var(--fo-panel) 64%,var(--fo-leaf)
+    )!important;
+
+  color:var(--fruit-ink)!important;
+
+  border:1px solid var(--fruit-border)!important;
+}
+
+/* Text everywhere */
+
+:root[data-fruit-mode="light"] .page-title h1,
+:root[data-fruit-mode="light"] .page-title p,
+:root[data-fruit-mode="light"] .panel-heading h2,
+:root[data-fruit-mode="light"] .panel-heading span,
+:root[data-fruit-mode="light"] .glass-panel h2,
+:root[data-fruit-mode="light"] .glass-panel h3,
+:root[data-fruit-mode="light"] .metric-card strong,
+:root[data-fruit-mode="light"] .metric-card span,
+:root[data-fruit-mode="light"] .metric-card small,
+:root[data-fruit-mode="light"] .text-secondary,
+:root[data-fruit-mode="light"] .text-muted {
+  color:var(--fruit-ink)!important;
+}
+
+/* Buttons */
+
+:root[data-fruit-mode="light"] .btn-primary,
+:root[data-fruit-mode="light"] .btn-gradient,
+:root[data-fruit-mode="light"] .btn-complete,
+:root[data-fruit-mode="light"] .btn-lux {
+  background:
+    linear-gradient(
+      125deg,var(--fo-accent),var(--fo-accent2)
+    )!important;
+
+  color:#fff!important;
+
+  border:1px solid
+    color-mix(
+      in srgb,var(--fo-accent) 65%,#222
+    )!important;
+
+  text-shadow:0 1px 2px #0008!important;
+}
+
+/* Focus controls */
+
+:root[data-fruit-mode="light"] .fruit-focus-controls button {
+  background:var(--fo-panel)!important;
+  color:var(--fruit-ink)!important;
+  border:2px solid var(--fo-accent)!important;
+}
+
+:root[data-fruit-mode="light"] .fruit-focus-controls button.active {
+  background:
+    color-mix(
+      in srgb,var(--fo-accent) 50%,var(--fo-panel)
+    )!important;
+
+  color:var(--fruit-ink)!important;
+}
+
+/* Forms */
+
+:root[data-fruit-mode="light"] .form-control,
+:root[data-fruit-mode="light"] .form-select,
+:root[data-fruit-mode="light"] .dark-field {
+  background:
+    color-mix(
+      in srgb,var(--fo-panel) 80%,#fff
+    )!important;
+
+  color:var(--fruit-ink)!important;
+}
+
+:root[data-fruit-mode="light"] input::placeholder,
+:root[data-fruit-mode="light"] textarea::placeholder {
+  color:var(--fruit-soft-ink)!important;
+  opacity:1!important;
+}
+
+/* Tables */
+
+:root[data-fruit-mode="light"] .table,
+:root[data-fruit-mode="light"] .table-dark {
+  --bs-table-bg:transparent!important;
+  --bs-table-color:var(--fruit-ink)!important;
+}
+
+:root[data-fruit-mode="light"] .table th,
+:root[data-fruit-mode="light"] .table td {
+  color:var(--fruit-ink)!important;
+}
+
+/* Fruit theme selector */
+
+:root[data-fruit-mode="light"] .fo64-panel {
+  background:var(--fo-panel)!important;
+  color:var(--fruit-ink)!important;
+}
+
+:root[data-fruit-mode="light"] .fo64-theme {
+  background:
+    color-mix(
+      in srgb,var(--fo-panel) 74%,var(--fo-flesh)
+    )!important;
+
+  color:var(--fruit-ink)!important;
+}
+
+:root[data-fruit-mode="light"] .fo64-cat,
+:root[data-fruit-mode="light"] .fo64-panel .text-secondary {
+  color:var(--fruit-soft-ink)!important;
+}
+
+/* Dark mode — keep contrast intact */
+
+:root[data-fruit-mode="dark"] .tomorrow-assignment strong,
+:root[data-fruit-mode="dark"] .tomorrow-assignment small {
+  color:var(--fo-text)!important;
+}
+
+:root[data-fruit-mode="dark"] .tomorrow-assignment {
+  background:var(--fo-panel)!important;
+}
+
+/* Preserve reduced-motion preferences */
+
+@media (prefers-reduced-motion:reduce) {
+  .glass-panel,
+  .metric-card,
+  .task-card {
+    transition:none!important;
+  }
+}
+
+/* ==========================================
+   FAMILY OPERATIONS — LOGIN CENTERING FIX
+   ========================================== */
+
+body.login-page {
+    margin: 0 !important;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+body.login-page main.page-wrap {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+    padding: 24px !important;
+    box-sizing: border-box;
+}
+
+body.login-page main.page-wrap > .content-limit {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+}
+
+body.login-page .login-stage {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-height: calc(100vh - 48px) !important;
+    margin: 0 auto !important;
+    padding: 20px 0 !important;
+    box-sizing: border-box;
+}
+
+body.login-page .login-panel {
+    display: block !important;
+    width: 100% !important;
+    max-width: 510px !important;
+    min-width: 0 !important;
+    margin: 0 auto !important;
+    padding: clamp(24px, 4vw, 48px) !important;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+}
+
+body.login-page .login-panel h1 {
+    font-size: clamp(26px, 4vw, 40px);
+    overflow-wrap: anywhere;
+}
+
+body.login-page .login-panel form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+body.login-page .login-panel input,
+body.login-page .login-panel select {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+body.login-page .login-panel .form-control,
+body.login-page .login-panel .form-select {
+    display: block;
+    width: 100%;
+}
+
+@media (max-width: 600px) {
+    body.login-page main.page-wrap {
+        padding: 12px !important;
+    }
+
+    body.login-page .login-stage {
+        min-height: calc(100vh - 24px) !important;
+    }
+
+    body.login-page .login-panel {
+        max-width: 100% !important;
+        padding: 24px !important;
+        border-radius: 20px;
+    }
+}

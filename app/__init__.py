@@ -68,10 +68,15 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .parent import bp as parent_bp
     from .hq import bp as hq_bp
     app.register_blueprint(auth_bp); app.register_blueprint(main_bp); app.register_blueprint(parent_bp); app.register_blueprint(hq_bp)
+    from .point_requests import bp as point_requests_bp
+    app.register_blueprint(point_requests_bp)
+
     from .payroll import bp as payroll_bp
     app.register_blueprint(payroll_bp)
     from .sentence_upload import bp as sentence_upload_bp
     app.register_blueprint(sentence_upload_bp)
+    from .family_photos import bp as family_photos_bp
+    app.register_blueprint(family_photos_bp)
     with app.app_context():
         # Preserve a pre-migration copy of an existing SQLite database. A fresh
         # install has no file to back up until after its tables are created.
