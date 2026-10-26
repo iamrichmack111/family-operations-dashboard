@@ -921,3 +921,91 @@ a:not(.btn) {
     transition:none!important;
   }
 }
+
+/* ==========================================
+   FAMILY OPERATIONS — LOGIN CENTERING FIX
+   ========================================== */
+
+body.login-page {
+    margin: 0 !important;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+body.login-page main.page-wrap {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+    padding: 24px !important;
+    box-sizing: border-box;
+}
+
+body.login-page main.page-wrap > .content-limit {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+}
+
+body.login-page .login-stage {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-height: calc(100vh - 48px) !important;
+    margin: 0 auto !important;
+    padding: 20px 0 !important;
+    box-sizing: border-box;
+}
+
+body.login-page .login-panel {
+    display: block !important;
+    width: 100% !important;
+    max-width: 510px !important;
+    min-width: 0 !important;
+    margin: 0 auto !important;
+    padding: clamp(24px, 4vw, 48px) !important;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+}
+
+body.login-page .login-panel h1 {
+    font-size: clamp(26px, 4vw, 40px);
+    overflow-wrap: anywhere;
+}
+
+body.login-page .login-panel form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+body.login-page .login-panel input,
+body.login-page .login-panel select {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+body.login-page .login-panel .form-control,
+body.login-page .login-panel .form-select {
+    display: block;
+    width: 100%;
+}
+
+@media (max-width: 600px) {
+    body.login-page main.page-wrap {
+        padding: 12px !important;
+    }
+
+    body.login-page .login-stage {
+        min-height: calc(100vh - 24px) !important;
+    }
+
+    body.login-page .login-panel {
+        max-width: 100% !important;
+        padding: 24px !important;
+        border-radius: 20px;
+    }
+}
